@@ -88,8 +88,13 @@ class SettingsScreen extends ConsumerWidget {
                 isAvailable
                     ? 'A 130 KB classifier and embedder runs locally. Powers '
                           'offline answers and on-device semantic search.'
-                    : 'This device could not load the bundled model. The app '
-                          'will use cloud models only.',
+                    // The concrete reason, not a shrug. Most often this is an
+                    // x86_64 emulator, where the packaged runtime has no native
+                    // library — worth saying so rather than implying the device
+                    // is at fault.
+                    : ref.watch(onnxRouterModelProvider).unavailableReason ??
+                          'This device could not load the bundled model. The '
+                              'app will use cloud models only.',
               ),
             ),
           ),

@@ -41,6 +41,13 @@ flutter run --dart-define=API_BASE_URL=http://192.168.1.50:3001
 **Sign in with any email and any password of 8+ characters.** The mock accepts
 anything; use the password `wrongpassword` to see the invalid-credentials path.
 
+> **Use an arm64 emulator image (or a real device) to see the on-device AI.**
+> The `onnxruntime` package ships native libraries for `arm64-v8a` and
+> `armeabi-v7a` only — there is no `x86_64` build. On a standard x86_64 emulator
+> the runtime cannot load, Settings says exactly that, and the app falls back to
+> cloud models. Everything else (streaming, offline outbox, OCR, dictation) works
+> on any emulator.
+
 ### Verify
 
 ```bash

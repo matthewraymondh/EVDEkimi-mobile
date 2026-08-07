@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:evdekimi_ai/core/error/exceptions.dart';
 import 'package:evdekimi_ai/core/logging/app_logger.dart';
 import 'package:evdekimi_ai/features/ai/data/onnx/hashing_vectorizer.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 import 'package:onnxruntime/onnxruntime.dart';
 
@@ -93,9 +94,14 @@ class OnnxRouterModel {
   OrtSession? _session;
   Future<void>? _initialising;
   bool _unavailable = false;
+  String? _unavailableReason;
+  int _initialisationAttempts = 0;
   RouterMetadata? _metadata;
 
   RouterMetadata? get metadata => _metadata;
+
+  /// Why the runtime is unusable, once we know. Surfaced in Settings.
+  String? get unavailableReason => _unavailableReason;
 
   /// Whether inference can run. Triggers initialisation if it has not happened.
   Future<bool> isAvailable() async {
@@ -108,15 +114,56 @@ class OnnxRouterModel {
     }
   }
 
-  Future<void> _ensureInitialised() =>
-      _initialising ??= _initialise().catchError((Object error) {
-        // Latch the failure so we do not retry a broken runtime on every send.
-        _unavailable = true;
-        _initialising = null;
-        throw error;
-      });
+  /// Loads the runtime at most once, ever.
+  ///
+  /// The latch matters more than it looks. `dlopen` of a missing or incompatible
+  /// `libonnxruntime.so` costs milliseconds and fails identically every time, and
+  /// `embed()` is called on every completed message and every backfill row — so a
+  /// broken runtime without this guard means dozens of doomed load attempts and a
+  /// wall of identical warnings.
+  ///
+  /// Note `_initialising` is deliberately *not* cleared on failure: retaining the
+  /// failed future is what guarantees `_initialise()` runs once, and the
+  /// `_unavailable` check short-circuits every later caller before it even gets
+  /// that far.
+  Future<void> _ensureInitialised() async {
+    if (_unavailable) {
+      throw EngineUnavailableException(
+        _unavailableReason ?? 'The ONNX runtime failed to load on this device',
+      );
+    }
+    try {
+      await (_initialising ??= _initialise());
+    } catch (error) {
+      _unavailable = true;
+      _unavailableReason = _describeFailure(error);
+      // Typed on the first failure as well as on every later one. Rethrowing the
+      // raw error here would mean callers saw a FlutterError once and an
+      // EngineUnavailableException thereafter, and ErrorMapper would classify the
+      // same condition two different ways.
+      throw EngineUnavailableException(_unavailableReason!, cause: error);
+    }
+  }
+
+  /// Turns a native loader failure into something a human can act on.
+  static String _describeFailure(Object error) {
+    final text = error.toString();
+    if (text.contains('libonnxruntime.so') || text.contains('dlopen')) {
+      // The common case by far: onnxruntime 1.4.1 ships arm64-v8a and
+      // armeabi-v7a only, so every x86_64 emulator lands here.
+      return 'ONNX Runtime has no native library for this CPU architecture. '
+          'The bundled package supports arm64-v8a and armeabi-v7a, so on-device '
+          'inference needs an arm64 emulator image or a physical device.';
+    }
+    return text;
+  }
+
+  /// How many times [_initialise] has actually run. Must never exceed 1.
+  @visibleForTesting
+  int get initialisationAttempts => _initialisationAttempts;
 
   Future<void> _initialise() async {
+    _initialisationAttempts++;
     final stopwatch = Stopwatch()..start();
     final bundle = _bundle ?? rootBundle;
 

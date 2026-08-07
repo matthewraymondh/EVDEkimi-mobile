@@ -19,8 +19,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// widget is built; and the async singletons (preferences, connectivity) are
 /// awaited so no screen has to render a loading state for infrastructure.
 Future<void> bootstrap() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
   final config = AppConfig.fromEnvironment();
 
   // Defaults to a 500-record buffer at debug level; trace would be far too
@@ -41,6 +39,13 @@ Future<void> bootstrap() async {
   // repository or a stream cannot silently vanish.
   await runZonedGuarded(
     () async {
+      // Must be inside the zone. The binding remembers which zone initialised it
+      // and expects `runApp` to happen in that same zone; initialising in the
+      // root zone and calling runApp in the guarded one makes Flutter emit
+      // "Zone mismatch" and leaves zone-specific configuration split between the
+      // two.
+      WidgetsFlutterBinding.ensureInitialized();
+
       _installErrorHandlers(logger);
 
       await SystemChrome.setPreferredOrientations([

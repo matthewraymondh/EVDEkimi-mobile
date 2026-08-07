@@ -75,6 +75,12 @@ class SpeechInputService {
   /// Hard cap on one dictation, as a battery guard.
   static const Duration _listenFor = Duration(minutes: 2);
 
+  /// Recogniser codes that mean "heard nothing", not "something broke".
+  static const Set<String> _benignSpeechErrors = {
+    'error_no_match',
+    'error_speech_timeout',
+  };
+
   final AppLogger _logger;
   final SpeechToText _speech;
 
@@ -97,10 +103,19 @@ class SpeechInputService {
       final available = await _speech.initialize(
         onStatus: _handleStatus,
         onError: (SpeechRecognitionError error) {
-          _logger.w(
-            'Speech error',
-            fields: {'error': error.errorMsg, 'permanent': error.permanent},
-          );
+          // "no match" and "timeout" just mean the recogniser heard nothing
+          // usable — the ordinary outcome of tapping the mic and not speaking.
+          // Logging those as warnings buries the errors that need attention.
+          // The plugin reports both with permanent: true, so that flag cannot be
+          // used to tell them apart.
+          if (_benignSpeechErrors.contains(error.errorMsg)) {
+            _logger.d('No speech detected', fields: {'code': error.errorMsg});
+          } else {
+            _logger.w(
+              'Speech error',
+              fields: {'error': error.errorMsg, 'permanent': error.permanent},
+            );
+          }
           _emit(
             _state.copyWith(
               isListening: false,

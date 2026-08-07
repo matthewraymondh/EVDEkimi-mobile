@@ -61,3 +61,6 @@ coverage/
 # The trained model and its metadata ARE committed on purpose: a clone must be
 # able to build and run on-device inference with no extra step. See
 # docs/ON_DEVICE_AI.md.
+
+# Personal recording notes for the demo video, not a reviewer-facing deliverable.
+docs/DEMO_SCRIPT.md

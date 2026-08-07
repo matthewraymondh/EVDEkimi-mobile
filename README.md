@@ -44,10 +44,23 @@ anything; use the password `wrongpassword` to see the invalid-credentials path.
 ### Verify
 
 ```bash
-flutter analyze          # expect: No issues found!
-flutter test             # expect: All tests passed!  (101 tests)
-flutter build apk --debug
+flutter analyze            # No issues found!
+flutter test               # All tests passed!  (101 tests)
+flutter build apk --debug  # per-ABI APKs in build/app/outputs/flutter-apk/
 ```
+
+**Android SDK requirement:** the build needs platform **`android-37.0`** installed.
+`flutter_secure_storage` 11 compiles against API 37, and Google now publishes only
+minor-versioned platforms — there is no plain `android-37`. Install it with:
+
+```bash
+sdkmanager "platforms;android-37.0"
+```
+
+`android/settings.gradle.kts` aligns every plugin module onto that platform and
+drags stale plugins forward (`onnxruntime` 1.4.1 still pins `compileSdk 33`, which
+modern AndroidX rejects). The comment there explains why the fix has to live in
+settings rather than the root build script.
 
 ### Regenerate the on-device model (optional)
 
@@ -198,7 +211,9 @@ more than the gap:
   training script.
 - **iOS is configured but unverified on hardware.** No Mac was available. The
   Podfile, permission strings and CI build step are in place; I have not run it on
-  a device and will not claim otherwise.
+  a device and will not claim otherwise. Android is verified — `flutter build apk
+  --debug` produces per-ABI APKs with `libonnxruntime.so` and the bundled model
+  present, but I have not yet run it on a physical Android handset either.
 - **Server-side conversation sync is scaffolded, not finished.** `SyncState` and
   soft-delete tombstones exist so deletions and edits can be reconciled, but no
   push/pull loop is implemented. The mock returns an empty list, which the

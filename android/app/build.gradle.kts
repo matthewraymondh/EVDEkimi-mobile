@@ -6,7 +6,14 @@ plugins {
 
 android {
     namespace = "id.evdekimi.evdekimi_ai"
-    compileSdk = flutter.compileSdkVersion
+
+    // Not flutter.compileSdkVersion: that yields a bare major (37), and Google now
+    // publishes only minor-versioned platforms, so it resolves to a non-existent
+    // `android-37`. Values come from gradle.properties, shared with every plugin
+    // module via the subprojects block in ../build.gradle.kts.
+    compileSdk = providers.gradleProperty("evdekimi.compileSdk").get().toInt()
+    compileSdkMinor = providers.gradleProperty("evdekimi.compileSdkMinor").get().toInt()
+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -16,10 +23,7 @@ android {
 
     defaultConfig {
         applicationId = "id.evdekimi.evdekimi_ai"
-        // 26 rather than Flutter's default: ML Kit text recognition and the
-        // ONNX Runtime native libraries both require 21+, and 26 avoids the
-        // multidex and 16 KB-page workarounds needed on older API levels.
-        minSdk = 26
+        minSdk = providers.gradleProperty("evdekimi.minSdk").get().toInt()
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

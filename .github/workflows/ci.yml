@@ -112,6 +112,16 @@ jobs:
           channel: stable
           cache: true
 
+      # flutter_secure_storage 11 compiles against API 37, and Google publishes
+      # only minor-versioned platforms — there is no plain `android-37`. Runners
+      # do not ship 37.0 yet, so install it explicitly rather than relying on
+      # whatever the image happens to have.
+      - name: Install Android platform 37.0
+        run: |
+          sdkmanager --install "platforms;android-37.0" \
+            || "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+                 --install "platforms;android-37.0"
+
       - run: flutter pub get
 
       # Debug build: the release build needs signing keys, which do not belong

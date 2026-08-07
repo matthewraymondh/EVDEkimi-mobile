@@ -1,0 +1,22 @@
+{
+  "modelId": "evdekimi-router-onnx-v1",
+  "version": 1,
+  "featureDim": 512,
+  "embeddingDim": 64,
+  "intents": [
+    "greeting",
+    "gratitude",
+    "recall",
+    "code",
+    "summarize",
+    "question"
+  ],
+  "inputName": "features",
+  "outputNames": [
+    "embedding",
+    "intent_probs"
+  ],
+  "sha256": "15d256fec53a5ba7f848271fcb4588dda5b755e6c5e9885f64d8295d32bd3237",
+  "sizeBytes": 133363,
+  "producer": "tools/train_router_model.py"
+}

@@ -235,19 +235,97 @@ function composeReply(messages) {
     return 'I did not catch a question there — what would you like to know?';
   }
 
+  if (/^(hi|hello|hey|halo|hai|yo)\b/.test(lower)) {
+    return [
+      'Hello. You are talking to the **mock backend**, not a real model — it',
+      'streams canned Markdown over SSE so the client can be exercised without an',
+      'API key.',
+      '',
+      'Try asking about code, a summary, or on-device inference to see different',
+      'shaped replies.',
+    ].join('\n');
+  }
+
+  if (/\b(thanks|thank you|makasih|terima kasih|cheers)\b/.test(lower)) {
+    return 'Any time. Still just a mock server, but glad the streaming works.';
+  }
+
+  // Short or placeholder prompts ("test", "hmm", "asdf") carry no topic to react
+  // to. Answering them with the long generic essay is what made every reply look
+  // identical, so they get their own short, obviously-a-mock response.
+  if (prompt.trim().length < 12 || /^(test|testing|ping|check)\b/.test(lower)) {
+    return [
+      `Received **${prompt.trim()}** — ${countWords(prompt)} word(s), streamed`,
+      `as ${tokenise(composeProbe(prompt)).length} chunks over server-sent events.`,
+      '',
+      'This is the mock backend echoing you, not a language model. Ask something',
+      'with a topic in it (code, a summary, a question) for a fuller reply.',
+    ].join('\n');
+  }
+
+  // Everything else: vary by prompt so repeated questions do not produce
+  // byte-identical answers, which reads as a broken app rather than a stub.
+  const variants = [
+    [
+      'Short answer: it depends on where the bottleneck actually is.',
+      '',
+      '1. **Measure first.** Assumptions about hot paths are wrong more often',
+      '   than not.',
+      '2. **Fix the biggest term.** A 10× win on 2% of the time is nothing.',
+      '3. **Keep it observable.** If you cannot see a regression, it will return.',
+    ],
+    [
+      'The useful framing here is *what changes if you are wrong*.',
+      '',
+      '- If the cost of being wrong is low, ship the simple version now.',
+      '- If it is high and hard to reverse, spend the time up front.',
+      '- Most decisions are the first kind and get treated like the second.',
+    ],
+    [
+      'There are two common answers, and they disagree for a good reason.',
+      '',
+      '| Approach | Wins when |',
+      '| --- | --- |',
+      '| Do it eagerly | The work is cheap and the result is always needed |',
+      '| Do it lazily | The work is expensive and often wasted |',
+      '',
+      'Pick by which cost you can actually measure.',
+    ],
+    [
+      'Worth separating the mechanism from the policy.',
+      '',
+      'The *mechanism* is usually simple and stable. The *policy* — when to apply',
+      'it, what to do on failure — is where the real complexity lives, and it is',
+      'the part worth writing down.',
+    ],
+  ];
+
+  const chosen = variants[stableIndex(prompt, variants.length)];
   return [
     `You asked about **${prompt.slice(0, 72)}${prompt.length > 72 ? '…' : ''}**.`,
     '',
-    'Short answer: it depends on where the bottleneck actually is. Three things',
-    'usually explain most of it:',
+    ...chosen,
     '',
-    '1. **Measure first.** Assumptions about hot paths are wrong more often',
-    '   than not.',
-    '2. **Fix the biggest term.** A 10× win on 2% of the time is nothing.',
-    '3. **Keep it observable.** If you cannot see a regression, it will return.',
-    '',
-    'Tell me which part you want to dig into and I will go deeper.',
+    '_Mock backend — canned text, streamed for real over SSE._',
   ].join('\n');
+}
+
+/** Deterministic index from a string, so the same prompt always maps the same way. */
+function stableIndex(text, buckets) {
+  let hash = 0;
+  for (const char of text.trim().toLowerCase()) {
+    hash = (hash * 31 + char.codePointAt(0)) >>> 0;
+  }
+  return hash % buckets;
+}
+
+function countWords(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Placeholder used only to quote a realistic chunk count back to the user. */
+function composeProbe(prompt) {
+  return `Received ${prompt.trim()} and streamed it back to you.`;
 }
 
 /** Splits text into token-ish pieces that reassemble exactly. */

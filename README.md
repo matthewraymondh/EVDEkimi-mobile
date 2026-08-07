@@ -274,3 +274,10 @@ POST /chat/completions?scenario=server      # 500 before streaming
 
 Access tokens expire after 5 minutes and refresh tokens rotate, so a normal
 session exercises the real refresh path rather than a happy-path stub.
+
+**The mock is not a model.** Replies are canned Markdown selected by keyword
+(code, summary, on-device, greeting, thanks) with a few generic variants chosen by
+a stable hash of the prompt, so repeated questions do not return byte-identical
+text. The *streaming* is real — chunked SSE, jittered token pacing, one token in
+seventeen deliberately split across two TCP writes. Point `API_BASE_URL` at any
+OpenAI-compatible endpoint to get real answers; no client code changes.

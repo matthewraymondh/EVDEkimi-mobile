@@ -16,9 +16,23 @@ Runtime Mobile.** Not a stub, not a mock, not a placeholder.
 | Runtime | ONNX Runtime Mobile via FFI (`onnxruntime` 1.4.1) |
 | Inputs | `features` — `float32[1, 512]` |
 | Outputs | `embedding` — `float32[1, 64]`, `intent_probs` — `float32[1, 6]` |
-| Latency | single-digit milliseconds on a mid-range phone |
 | Network | none, ever |
 | Trained by | `tools/train_router_model.py` (committed) |
+
+Verified on a physical Android device:
+
+```
+INF [ai.onnx] ONNX router ready ort=1.15.1 model=evdekimi-router-onnx-v1
+             sizeKb=130 loadMs=559
+```
+
+ONNX Runtime 1.15.1 loads the graph in ~560 ms on first use (lazily, not at app
+start), after which embedding runs on every completed message.
+
+**It cannot run on an x86_64 emulator.** The `onnxruntime` package ships native
+libraries for `arm64-v8a` and `armeabi-v7a` only, so `dlopen` fails there and the
+app falls back to cloud models — which is the graceful-degradation path working as
+designed, not a defect. Use an arm64 system image or a real device.
 
 The graph:
 

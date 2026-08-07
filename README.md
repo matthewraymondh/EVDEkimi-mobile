@@ -34,9 +34,20 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3001
 #    iOS simulator — shares the host network
 flutter run --dart-define=API_BASE_URL=http://localhost:3001
 
-#    Physical device — use your LAN IP
+#    Physical device over USB — no LAN, no firewall, no IP hunting
+adb reverse tcp:3001 tcp:3001
+flutter run --dart-define=API_BASE_URL=http://localhost:3001
+
+#    Physical device over Wi-Fi — needs the phone on the same subnet as the
+#    host, an inbound firewall allowance for node on that network profile, and
+#    the host's real LAN IP (not a WSL/Hyper-V virtual adapter address)
 flutter run --dart-define=API_BASE_URL=http://192.168.1.50:3001
 ```
+
+`adb reverse` is the reliable option: it tunnels the phone's `localhost:3001` to
+the host over USB, so none of the Wi-Fi variables apply. A LAN IP that times out
+rather than refusing the connection is almost always a firewall profile mismatch
+or the wrong adapter's address.
 
 **Sign in with any email and any password of 8+ characters.** The mock accepts
 anything; use the password `wrongpassword` to see the invalid-credentials path.
@@ -218,9 +229,11 @@ more than the gap:
   training script.
 - **iOS is configured but unverified on hardware.** No Mac was available. The
   Podfile, permission strings and CI build step are in place; I have not run it on
-  a device and will not claim otherwise. Android is verified — `flutter build apk
-  --debug` produces per-ABI APKs with `libonnxruntime.so` and the bundled model
-  present, but I have not yet run it on a physical Android handset either.
+  a device and will not claim otherwise.
+- **Android is verified on a physical device**, including on-device inference:
+  ONNX Runtime 1.15.1 loads the bundled 130 KB model in ~560 ms and embedding runs
+  on every completed message. On an x86_64 emulator the runtime cannot load at all
+  (see the note in Quick start) and the app falls back to cloud models.
 - **Server-side conversation sync is scaffolded, not finished.** `SyncState` and
   soft-delete tombstones exist so deletions and edits can be reconciled, but no
   push/pull loop is implemented. The mock returns an empty list, which the

@@ -1,0 +1,14 @@
+# Test-tree overrides. The nearest analysis_options.yaml wins, so this inherits
+# every rule from the root file and relaxes exactly two.
+include: ../analysis_options.yaml
+
+linter:
+  rules:
+    # Tests are documentation. Spelling out `sequence: 0` or
+    # `status: MessageStatus.queued` states the scenario being exercised even
+    # when it happens to match a helper's default — the explicitness is the point.
+    avoid_redundant_argument_values: false
+
+    # Fixtures are built by helpers that take runtime values, so most literals
+    # cannot be const anyway and the rule mostly generates churn here.
+    prefer_const_constructors: false

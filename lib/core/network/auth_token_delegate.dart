@@ -11,8 +11,15 @@ abstract interface class AuthTokenDelegate {
   /// Attempts to exchange the refresh token for a new access token.
   ///
   /// Returns `true` when a fresh access token is available afterwards.
-  /// Implementations must be safe to call concurrently; the interceptor
-  /// additionally collapses concurrent callers into a single attempt.
+  ///
+  /// **Implementations must collapse concurrent calls into one attempt.** This
+  /// is a hard requirement, not an optimisation. There are two independent
+  /// transports here — the interceptor for ordinary requests, the SSE client for
+  /// streaming — and both can see a 401 in the same instant when a token ages
+  /// out mid-screen. With rotating refresh tokens the second attempt presents
+  /// one the first has already spent, so it fails, the session is torn down, and
+  /// the user is signed out for no reason. The obligation sits here rather than
+  /// in either caller precisely because neither can see the other.
   Future<bool> refreshSession();
 
   /// Invoked when the session is definitively unusable, so the app can sign the

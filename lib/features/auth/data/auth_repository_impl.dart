@@ -171,8 +171,29 @@ class AuthRepositoryImpl implements AuthRepository, AuthTokenDelegate {
     return const Ok(null);
   }
 
+  /// Collapses concurrent refreshes across *every* caller.
+  ///
+  /// This has to live here rather than in one interceptor. The HTTP interceptor
+  /// and the SSE client are separate transport paths that can both hit a 401 at
+  /// the same moment, and with rotating refresh tokens — which the backend uses —
+  /// the second refresh presents a token the first has already consumed. That
+  /// second call fails, the session is torn down, and the user is signed out for
+  /// no reason. One in-flight future shared by all callers is the fix.
+  Future<Result<AuthSession>>? _refreshInFlight;
+
   @override
-  Future<Result<AuthSession>> refresh() async {
+  Future<Result<AuthSession>> refresh() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+
+    final attempt = _performRefresh().whenComplete(() {
+      _refreshInFlight = null;
+    });
+    _refreshInFlight = attempt;
+    return attempt;
+  }
+
+  Future<Result<AuthSession>> _performRefresh() async {
     final refreshToken = _session?.refreshToken;
     if (refreshToken == null || refreshToken.isEmpty) {
       return const Err(

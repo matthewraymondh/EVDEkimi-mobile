@@ -334,10 +334,24 @@ whose selling point is working without a network. The tuning is in the metrics
 - iOS accessibility is pinned to `first_unlock_this_device`: `first_unlock` lets a
   background outbox flush read the token after a reboot, and `_this_device` stops
   the credential being restored onto a different device from a backup.
-- **Single-flight refresh.** A chat screen can fire several requests at once; if
-  the token just expired they all 401 simultaneously. Refreshing per request would
-  burn a rotating refresh token N times and invalidate the session outright. The
-  first 401 starts a refresh; every concurrent 401 awaits that same future.
+- **Single-flight refresh, owned by the delegate.** A chat screen can fire several
+  requests at once; if the token just expired they all 401 simultaneously.
+  Refreshing per request would burn a rotating refresh token N times and
+  invalidate the session outright. The first caller starts a refresh; every
+  concurrent caller awaits that same future.
+
+  The collapse lives in `AuthRepositoryImpl.refresh`, not in the interceptor,
+  because there are **two** transports that can hit a 401 and neither can see the
+  other: `AuthInterceptor` for ordinary requests, and `SseClient` for streaming.
+  Streaming needs its own 401 handling at all because it sets
+  `validateStatus: (_) => true` — it has to read non-2xx bodies off the byte
+  stream — which means Dio never raises the `DioException` the interceptor acts
+  on. Until that was wired up, `/chat/completions` was the one route in the app
+  that could not refresh a token: it just told the user their session had expired
+  the first time one aged out mid-conversation. Covered by
+  `test/core/network/sse_auth_test.dart` and
+  `test/features/auth/refresh_single_flight_test.dart`; both fail if the
+  respective guarantee is removed.
 - The logger redacts a known set of field names *in the logger*, not at call sites,
   so forgetting to scrub a token at one site cannot leak it. `AuthSession.toString`
   and `AuthCredentials.toString` never include secrets, and there are tests.

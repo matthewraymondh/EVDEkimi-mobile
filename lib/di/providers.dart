@@ -110,6 +110,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     sseClient: SseClient(
       dio: ref.watch(dioProvider),
       logger: ref.watch(loggerProvider),
+      authDelegate: ref.watch(authTokenDelegateProvider),
       idleTimeout: config.streamIdleTimeout,
     ),
   );

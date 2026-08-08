@@ -71,6 +71,7 @@ void main() {
           authDelegate: const NoopAuthTokenDelegate(),
         ),
         logger: logger,
+        authDelegate: const NoopAuthTokenDelegate(),
       ),
     );
 

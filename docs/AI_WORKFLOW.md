@@ -276,7 +276,7 @@ documentation of a deliberate design choice.
 ## 3b. What only running it could find
 
 Everything above was caught by reading, by the analyzer, or by tests. The next
-three needed the app on an actual device — which is the point: each verification
+four needed the app on an actual device — which is the point: each verification
 stage catches a class the previous one structurally cannot.
 
 | Stage | Caught |
@@ -285,6 +285,10 @@ stage catches a class the previous one structurally cannot.
 | Tests | The `Utf8Decoder` transport bug (§3.1), wrong assumptions (§3.7) |
 | Building | Three toolchain conflicts (§3.11) |
 | **Running it** | Startup zone mismatch, a latch that did not latch, unusable output |
+| **Using it for a while** | A 401 path that only existed after a token aged out (§3.13) |
+
+That last row is its own category. §3.13 needed the app used continuously past a
+token lifetime — no amount of launching it and tapping around would surface it.
 
 ### 3.9 Zone mismatch on every launch
 
@@ -359,6 +363,40 @@ every layer worked exactly as written, and the result was still unusable. It too
 looking at the screen. The mock now varies replies by a stable hash of the prompt
 and labels itself as canned text.
 
+### 3.13 The one route that could not refresh a token
+
+After five minutes of use the app would intermittently answer a message with
+*"Your session expired. Please sign in again."* and leave it stuck at **Queued**.
+Everything else in the app kept working, which is what made it interesting.
+
+`AuthInterceptor` recovers from a 401 by refreshing and replaying — but it acts in
+Dio's `onError`, and `SseClient` sets `validateStatus: (_) => true` so it can read
+error bodies off the byte stream. Disabling status validation means Dio never
+raises a `DioException`, so `onError` never fires. `/chat/completions` was
+therefore the only route in the app with no path to a refresh at all. The mock
+expires access tokens after five minutes; that is the whole of "sometimes".
+
+Two things are worth drawing out:
+
+**The bug lived in the gap between two correct components.** Both the interceptor
+and the SSE client are individually right, and each is well commented. Neither
+comment mentioned the other, because neither author — agent or human — was looking
+at both files at once. Reviewing files in isolation cannot find this. Nothing in
+the analyzer, the lints, or the 123 tests passing at the time could either.
+
+**Fixing it created a second, subtler bug.** Once the SSE client can refresh,
+there are two independent refreshers, and the backend rotates refresh tokens — so
+two simultaneous 401s mean the second attempt presents a token the first already
+spent, fails, and signs the user out of a healthy session. The interceptor's
+existing single-flight was no longer sufficient, because it could only see its own
+callers. The collapse moved into `AuthTokenDelegate.refreshSession`, where it is
+now a documented obligation of the interface rather than an optimisation inside
+one caller.
+
+Both halves are pinned by tests that were verified to fail without their fix
+(`sse_auth_test.dart`, `refresh_single_flight_test.dart`) — the second reproduces
+rotation by rejecting a spent token, which is the only way the race is visible.
+
 ---
 
 ## 4. What the agent did well
@@ -412,7 +450,7 @@ Balance matters here — the review found real bugs, but the leverage was enormo
 
 ```bash
 flutter analyze            # No issues found!
-flutter test               # All tests passed! (123 tests)
+flutter test               # All tests passed! (132 tests)
 flutter build apk --debug  # per-ABI APKs; needs platform android-37.0
 python tools/train_router_model.py   # retrains; then flutter test re-checks parity
 ```

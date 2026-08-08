@@ -6,12 +6,16 @@ import 'package:evdekimi_ai/core/network/auth_token_delegate.dart';
 
 /// Attaches the bearer token and transparently recovers from a 401.
 ///
-/// The interesting part is the single-flight refresh. A chat screen can easily
-/// fire several requests at once (history, models, an upload); if the token has
-/// just expired they all get a 401 at the same instant. Refreshing per request
-/// would burn the refresh token N times and, with rotating refresh tokens,
-/// invalidate the session outright. Instead the first 401 starts a refresh and
-/// every concurrent 401 awaits that same future.
+/// A chat screen can easily fire several requests at once (history, models, an
+/// upload); if the token has just expired they all get a 401 at the same
+/// instant. Collapsing those into one refresh is essential — but it is *not*
+/// done here, because this interceptor is not the only transport that can hit a
+/// 401. `SseClient` bypasses it entirely (see the note there), so a
+/// single-flight local to this class would still let two refreshes race.
+/// [AuthTokenDelegate.refreshSession] owns that guarantee for every caller.
+///
+/// What is left here is the per-request half: refresh, then replay this one
+/// request exactly once with the new credentials.
 class AuthInterceptor extends Interceptor {
   AuthInterceptor({
     required AuthTokenDelegate delegate,
@@ -42,8 +46,6 @@ class AuthInterceptor extends Interceptor {
   /// Called by `DioFactory` immediately after the client is built.
   // ignore: use_setters_to_change_properties
   void attach(Dio client) => _client = client;
-
-  Future<bool>? _refreshInFlight;
 
   @override
   Future<void> onRequest(
@@ -81,7 +83,7 @@ class AuthInterceptor extends Interceptor {
       fields: {'path': options.path},
     );
 
-    final refreshed = await _refreshOnce();
+    final refreshed = await _delegate.refreshSession();
     if (!refreshed) {
       _logger.w('Refresh failed; invalidating session');
       await _delegate.onSessionInvalidated();
@@ -109,17 +111,5 @@ class AuthInterceptor extends Interceptor {
       );
       return handler.next(retryError);
     }
-  }
-
-  /// Collapses concurrent refresh attempts into one network call.
-  Future<bool> _refreshOnce() {
-    final inFlight = _refreshInFlight;
-    if (inFlight != null) return inFlight;
-
-    final attempt = _delegate.refreshSession().whenComplete(() {
-      _refreshInFlight = null;
-    });
-    _refreshInFlight = attempt;
-    return attempt;
   }
 }

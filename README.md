@@ -19,7 +19,7 @@ build including the release bundle, and an iOS build on macOS.
 | **Persistence** | sqflite + hand-written migrations |
 | **Networking** | Dio + a hand-written server-sent-events parser |
 | **On-device AI** | ONNX Runtime Mobile, 130 KB model bundled in the app |
-| **Tests** | 215 passing · `flutter analyze` clean under a strict lint set |
+| **Tests** | 217 passing · `flutter analyze` clean under a strict lint set |
 
 ---
 
@@ -68,7 +68,7 @@ anything; use the password `wrongpassword` to see the invalid-credentials path.
 
 ```bash
 flutter analyze            # No issues found!
-flutter test               # All tests passed!  (215 tests)
+flutter test               # All tests passed!  (217 tests)
 flutter build apk --debug  # per-ABI APKs in build/app/outputs/flutter-apk/
 ```
 

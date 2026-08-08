@@ -143,7 +143,15 @@ class OnDeviceEngine implements InferenceEngine {
     );
 
     final response = await _compose(prompt, prediction);
-    yield* _emit(response, stopwatch);
+    yield* _emit(
+      response,
+      stopwatch,
+      // A refusal is text, not an answer. Saying so is what keeps the message
+      // in the outbox for a real engine to handle later.
+      reason: prediction.intent.isLocallyAnswerable
+          ? FinishReason.stop
+          : FinishReason.deferred,
+    );
   }
 
   /// Streams a composed answer word by word and closes the run.
@@ -151,7 +159,11 @@ class OnDeviceEngine implements InferenceEngine {
   /// Split out so both paths — classified and image-led — pace, cancel and
   /// report latency identically. Splitting on whitespace but keeping the
   /// trailing space means the reassembled text is byte-identical to [response].
-  Stream<InferenceEvent> _emit(String response, Stopwatch stopwatch) async* {
+  Stream<InferenceEvent> _emit(
+    String response,
+    Stopwatch stopwatch, {
+    FinishReason reason = FinishReason.stop,
+  }) async* {
     final chunks = _chunk(response);
     for (final chunk in chunks) {
       // Cancelling the subscription makes this delay the abort point, so a
@@ -162,6 +174,7 @@ class OnDeviceEngine implements InferenceEngine {
 
     stopwatch.stop();
     yield InferenceCompleted(
+      finishReason: reason,
       outputTokens: chunks.length,
       latency: stopwatch.elapsed,
     );
@@ -341,14 +354,14 @@ class OnDeviceEngine implements InferenceEngine {
         '(${(prediction.confidence * 100).toStringAsFixed(0)}% confidence) in a '
         'few milliseconds, but it is a small classifier and embedder — not a '
         'local LLM, and not connected to our listings.\n\n'
-        // Deliberately does *not* promise that this will send itself later.
-        // Answering at all counts as delivery, so the outbox row for this
-        // message is already gone by the time it is read — the earlier wording
-        // said it would auto-send once back online, which was a promise the
-        // same code path had just made impossible to keep.
-        '**To get a real answer:** reconnect and ask again, or switch to a '
-        'cloud model in the model picker. Nothing is queued behind this — the '
-        'question needs an engine this device does not have.';
+        // This promise is kept by `FinishReason.deferred`: the run reports that
+        // it produced text rather than an answer, so the repository leaves the
+        // outbox row in place and a capable engine delivers it later. Without
+        // that signal, answering counted as delivering and the sentence was
+        // false the moment it was written.
+        '**To get a real answer:** stay offline and it will send itself once '
+        'you reconnect — it is still queued. Or switch to a cloud model in the '
+        'model picker now.';
   }
 
   /// Splits text into word-sized chunks that concatenate back to the original.

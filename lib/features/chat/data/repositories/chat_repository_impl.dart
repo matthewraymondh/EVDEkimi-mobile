@@ -555,9 +555,14 @@ class ChatRepositoryImpl implements ChatRepository {
                 generation.buffer.write(text);
                 // Per-token UI update, no database round-trip.
                 _liveTicks.add(conversationId);
-              case InferenceCompleted(:final outputTokens, :final latency):
+              case InferenceCompleted(
+                :final outputTokens,
+                :final latency,
+                :final finishReason,
+              ):
                 generation.outputTokens = outputTokens;
                 generation.latency = latency;
+                generation.finishReason = finishReason;
             }
           },
           onError: (Object error, StackTrace stackTrace) {
@@ -617,19 +622,32 @@ class ChatRepositoryImpl implements ChatRepository {
 
     final content = generation.buffer.toString();
 
+    // A deferral is text, not an answer. The on-device engine reports it when
+    // the question needs live inventory, a price or a calendar — things it
+    // refuses to guess at. Counting that as a delivered reply is what dropped
+    // the message: the outbox row went, so the question was never asked once
+    // the network returned, while the offline banner had already promised it
+    // would send itself.
+    final isDeferred = generation.finishReason == FinishReason.deferred;
+
     await _messageDao.writeStreamedContent(
       conversationId: conversationId,
       messageId: assistantMessageId,
       content: content,
       status: content.trim().isEmpty
           ? MessageStatus.failed
+          : isDeferred
+          // Still owed. The row keeps its "Queued" badge beside the
+          // explanation, and a capable engine overwrites this text later.
+          ? MessageStatus.queued
           : MessageStatus.complete,
       tokenCount: generation.outputTokens,
       latency: generation.latency,
     );
 
-    // The reply arrived, so the user message is definitively delivered.
-    if (userMessageId.isNotEmpty) {
+    // The reply arrived, so the user message is definitively delivered — unless
+    // what arrived was a refusal, in which case the outbox keeps it.
+    if (userMessageId.isNotEmpty && !isDeferred) {
       await _messageDao.update(conversationId, userMessageId, {
         MessageColumns.status: MessageStatus.complete.name,
       });
@@ -998,6 +1016,10 @@ class _ActiveGeneration {
   String? statusMessage;
   int? outputTokens;
   Duration? latency;
+
+  /// How the engine says the run ended. `deferred` means it produced text but
+  /// not an answer, which is the difference between delivered and still owed.
+  FinishReason finishReason = FinishReason.stop;
   int persistedLength = 0;
 
   /// True once a terminal write has happened. The throttled persist checks this

@@ -228,6 +228,54 @@ void main() {
     });
   });
 
+  group('a deferred reply', () {
+    test('stays in the outbox instead of counting as delivered', () async {
+      // What the user hits offline with the on-device fallback on: the local
+      // model answers a price question by refusing, honestly, and pointing at
+      // the cloud. That is text, not an answer. Treating it as delivered
+      // removed the row, so the question was never asked once the network came
+      // back — while the offline banner had already said it would send itself.
+      await repository.sendMessage(
+        conversationId: conversationId,
+        content: 'how much is a villa in canggu',
+      );
+      await engine.emitted.future;
+      engine
+        ..emit(const InferenceDelta('I cannot answer that on this device.'))
+        ..completeWith(FinishReason.deferred);
+      await pumpEventQueue(times: 40);
+
+      final assistant = await assistantMessage();
+      expect(assistant.content, contains('cannot answer'));
+      expect(
+        assistant.status,
+        equals(MessageStatus.queued),
+        reason: 'the explanation is shown, but the reply is still owed',
+      );
+      expect(
+        await outboxDao.count(),
+        equals(1),
+        reason: 'a refusal must not dequeue the question',
+      );
+    });
+
+    test('a real answer still clears it', () async {
+      // The guard must not turn every completion into a permanent queue entry.
+      await repository.sendMessage(
+        conversationId: conversationId,
+        content: 'hello',
+      );
+      await engine.emitted.future;
+      engine
+        ..emit(const InferenceDelta('Hello back.'))
+        ..complete();
+      await pumpEventQueue(times: 40);
+
+      expect((await assistantMessage()).status, equals(MessageStatus.complete));
+      expect(await outboxDao.count(), isZero);
+    });
+  });
+
   group('a flush while a reply is streaming', () {
     test('leaves the in-flight generation alone', () async {
       // The bug this exists for: an outbox entry stays due for the whole time
@@ -451,6 +499,13 @@ class _ScriptedEngine implements InferenceEngine {
 
   void complete() {
     _controller?.add(const InferenceCompleted());
+    unawaited(_controller?.close());
+  }
+
+  /// Ends the stream with an explicit finish reason, so a test can produce the
+  /// on-device engine's "I produced text but not an answer" outcome.
+  void completeWith(FinishReason reason) {
+    _controller?.add(InferenceCompleted(finishReason: reason));
     unawaited(_controller?.close());
   }
 

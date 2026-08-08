@@ -136,7 +136,22 @@ final class InferenceCompleted extends InferenceEvent {
   final Duration? latency;
 }
 
-enum FinishReason { stop, length, contentFilter, cancelled, error }
+enum FinishReason {
+  stop,
+  length,
+  contentFilter,
+  cancelled,
+  error,
+
+  /// The engine produced text, but not an answer to the question.
+  ///
+  /// Only the on-device engine uses this, and only for the intents it refuses
+  /// to guess at — a price, a viewing, anything needing live inventory. The
+  /// distinction matters to the caller rather than to the user: a deferral must
+  /// not count as delivery, or the message is dropped from the outbox and the
+  /// question is never actually asked once the network returns.
+  deferred,
+}
 
 /// What an engine can do, so the UI can enable/disable affordances instead of
 /// discovering limits by failing mid-request.

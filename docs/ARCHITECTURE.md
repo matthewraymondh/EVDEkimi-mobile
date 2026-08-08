@@ -409,17 +409,6 @@ whose selling point is working without a network. The tuning is in the metrics
 
 In priority order, with the reasoning:
 
-**Queue what the local engine cannot answer.** With the on-device fallback
-enabled, an offline question the local model cannot serve — a price, a viewing,
-anything needing live inventory — gets an honest refusal rather than being
-queued for delivery when the network returns. Queuing it would plainly be
-better. `RouterIntent.isLocallyAnswerable` already expresses the rule and is
-deliberately not wired: acting on it means classifying the prompt inside
-`EngineRouter`, which duplicates work the engine does anyway and pulls prompt
-content into a routing decision the class documents itself as avoiding. The
-clean version is for the engine to decline the request and the repository to
-treat that as "stay queued" rather than as a completed answer.
-
 1. **Paginate messages.** `watchMessages` loads a whole conversation. Fine at
    hundreds of messages, wrong at ten thousand. The `sequence` column already
    supports keyset pagination.

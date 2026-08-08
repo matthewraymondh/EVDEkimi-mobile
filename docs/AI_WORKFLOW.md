@@ -259,7 +259,7 @@ documentation of a deliberate design choice.
 
 ### 3.8 Smaller catches
 
-- **A raw NUL byte in source.** The SSE parser's spec-correct `value.contains(' ')`
+- **A raw NUL byte in source.** The SSE parser's spec-correct `value.contains('\u0000')`
   was emitted with a literal control byte inside the quotes. Correct behaviour,
   fragile file — replaced with the escape.
 - **A Devanagari digit in a hex literal.** `Color(0xFF1E7A४4)` — caught by the
@@ -270,6 +270,94 @@ documentation of a deliberate design choice.
   by injecting the owning client via `attach()`.
 - **`@visibleForTesting` on a production helper.** `watchQuery` is used by every
   reactive repository; the annotation would have made every legitimate use a warning.
+
+---
+
+## 3b. What only running it could find
+
+Everything above was caught by reading, by the analyzer, or by tests. The next
+three needed the app on an actual device — which is the point: each verification
+stage catches a class the previous one structurally cannot.
+
+| Stage | Caught |
+|---|---|
+| Analyzer | The provider cycle (§3.2), unused imports, missing awaits |
+| Tests | The `Utf8Decoder` transport bug (§3.1), wrong assumptions (§3.7) |
+| Building | Three toolchain conflicts (§3.11) |
+| **Running it** | Startup zone mismatch, a latch that did not latch, unusable output |
+
+### 3.9 Zone mismatch on every launch
+
+`bootstrap()` called `WidgetsFlutterBinding.ensureInitialized()` in the root zone
+but `runApp()` inside `runZonedGuarded`. Flutter warns because the binding records
+the zone it was initialised in, and zone-specific configuration then resolves
+inconsistently depending on which zone was active when a callback was registered.
+
+Invisible to the analyzer, invisible to tests, printed on every single launch.
+Fixed by initialising the binding inside the guarded zone.
+
+### 3.10 A latch that did not latch — the same defect as §3.4
+
+The emulator log showed this warning **ten times in one session**:
+
+```
+WRN [ai.onnx] ONNX router unavailable ... Failed to load dynamic library
+             'libonnxruntime.so': dlopen failed
+```
+
+`_ensureInitialised` cleared the in-flight future on failure, and `predict()` /
+`embed()` never checked the `_unavailable` flag — so every completed message and
+every backfill row retried a doomed `dlopen`.
+
+The comment sitting directly above that code read:
+
+> `// Latch the failure so we do not retry a broken runtime on every send.`
+
+It described the intent. The code did the opposite. **This is exactly the defect
+class documented in §3.4** — a comment that promises behaviour its code does not
+implement — which is a fair reminder that finding one instance of a pattern does
+not mean you have found them all, and that the review pass has to read code and
+comment *against each other* rather than trusting either alone.
+
+Fixing it surfaced a second, quieter problem: the first failure threw a raw
+`FlutterError` while later ones threw `EngineUnavailableException`, so
+`ErrorMapper` classified one condition two different ways. Both now throw the
+typed exception. A regression test asserts `initialisationAttempts == 1` after
+repeated calls.
+
+### 3.11 Three toolchain conflicts, and getting the fix wrong twice
+
+The Android build failed three times in a row, each for a different reason:
+
+1. `Failed to find target with hash string 'android-37'` — a plugin declares a bare
+   `compileSdk = 37`, but Google now publishes only minor-versioned platforms.
+   There is no `android-37`, only `android-37.0`.
+2. `:onnxruntime:checkDebugAarMetadata` failed — that plugin still pins
+   `compileSdk 33`, below what the AndroidX artefacts in its own graph require.
+3. `Could not close incremental caches` — Kotlin's Build Tools API cannot reliably
+   release its `.tab` handles on Windows.
+
+Worth recording honestly: **the fix for (1) and (2) was wrong twice before it was
+right.** `plugins.withId` is overwritten by the module's own `android {}` block; an
+`afterEvaluate` registered inside that callback runs after AGP has already read the
+value and AGP 9 hard-fails; and `subprojects { afterEvaluate {} }` in the root
+script throws because Flutter's plugin loader has already evaluated those projects.
+Only `gradle.beforeProject` in `settings.gradle.kts` registers early enough. All
+three failed attempts are documented in that file so the next person does not
+repeat them.
+
+For (3) I removed the flag, ran a clean build, watched it fail, and put it back —
+rather than leaving a cargo-culted setting nobody could justify later.
+
+### 3.12 Output that was technically correct and practically useless
+
+Asking the app "test" returned the same paragraph every time. Not a client bug —
+the mock backend matched keywords and fell through to one hard-coded response.
+
+Worth listing because it is the failure mode an agent is least equipped to notice:
+every layer worked exactly as written, and the result was still unusable. It took
+looking at the screen. The mock now varies replies by a stable hash of the prompt
+and labels itself as canned text.
 
 ---
 
@@ -309,16 +397,29 @@ Balance matters here — the review found real bugs, but the leverage was enormo
 6. **Make it say what it cannot do.** The most valuable prompt in the session was
    *"don't fake local generation."* Left alone, agents optimise for a working demo,
    and honest limitations are a product feature.
+7. **Do not stop at "it compiles" or even "tests pass."** Four of the twelve
+   findings here (§3.9–§3.12) were reachable only by building and then actually
+   using the app. Green tests and a clean analyzer say the code does what it says;
+   they cannot say whether what it says is useful.
+8. **Assume a defect pattern recurs.** §3.10 is the same "comment contradicts its
+   code" defect as §3.4, in a different file, found much later. Having fixed one
+   instance, I should have grepped for the pattern instead of assuming it was
+   isolated.
 
 ---
 
 ## 6. Reproducing the verification
 
 ```bash
-flutter analyze          # No issues found!
-flutter test             # All tests passed! (101 tests)
+flutter analyze            # No issues found!
+flutter test               # All tests passed! (106 tests)
+flutter build apk --debug  # per-ABI APKs; needs platform android-37.0
 python tools/train_router_model.py   # retrains; then flutter test re-checks parity
 ```
+
+On-device inference needs an **arm64** device or emulator image — the `onnxruntime`
+package ships `arm64-v8a` and `armeabi-v7a` native libraries only. Verified on a
+physical Android device: ONNX Runtime 1.15.1, 130 KB model, ~560 ms load.
 
 The parity test is the one to run if you change anything about feature extraction.
 It is the only thing standing between a one-character change and a silently worse

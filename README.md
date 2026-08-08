@@ -14,7 +14,7 @@ take-home assessment.
 | **Persistence** | sqflite + hand-written migrations |
 | **Networking** | Dio + a hand-written server-sent-events parser |
 | **On-device AI** | ONNX Runtime Mobile, 130 KB model bundled in the app |
-| **Tests** | 101 passing · `flutter analyze` clean under a strict lint set |
+| **Tests** | 106 passing · `flutter analyze` clean under a strict lint set |
 
 ---
 
@@ -63,7 +63,7 @@ anything; use the password `wrongpassword` to see the invalid-credentials path.
 
 ```bash
 flutter analyze            # No issues found!
-flutter test               # All tests passed!  (101 tests)
+flutter test               # All tests passed!  (106 tests)
 flutter build apk --debug  # per-ABI APKs in build/app/outputs/flutter-apk/
 ```
 
@@ -182,6 +182,7 @@ a 250 ms throttle purely for crash durability. A 200-token answer costs ~8
 test/
 ├── core/network/sse_parser_test.dart          transport framing edge cases
 ├── features/ai/hashing_vectorizer_parity_test.dart   Dart ↔ Python parity
+├── features/ai/onnx_router_model_test.dart    runtime-unavailable degradation
 ├── features/chat/outbox_dao_test.dart         real SQLite via FFI
 ├── features/chat/domain_test.dart             pure domain logic
 └── widget/message_bubble_test.dart            transcript rendering, both themes

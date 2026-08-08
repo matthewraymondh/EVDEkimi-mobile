@@ -22,26 +22,15 @@ class ConversationListScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Conversations'),
-        actions: [
-          IconButton(
-            onPressed: () => context.push(AppRoutes.search),
-            tooltip: 'Search your history (on-device)',
-            icon: const Icon(Icons.search_rounded),
-          ),
-          IconButton(
-            onPressed: () => context.push(AppRoutes.settings),
-            tooltip: 'Settings',
-            icon: user == null
-                ? const Icon(Icons.settings_outlined)
-                : AppAvatar(label: user.initials, size: AppSizes.avatarSm),
-          ),
-        ],
-      ),
       body: Column(
         children: [
           OfflineBanner(isVisible: !isOnline, pendingCount: pendingCount),
+          _GreetingHeader(
+            name: user?.friendlyName,
+            initials: user?.initials ?? '?',
+            onOpenSettings: () => context.push(AppRoutes.settings),
+          ),
+          _SearchPrompt(onTap: () => context.push(AppRoutes.search)),
           Expanded(
             child: conversationsAsync.when(
               loading: () => const SkeletonList(),
@@ -110,6 +99,135 @@ class ConversationListScreen extends ConsumerWidget {
   }
 }
 
+/// Time-aware greeting with the user's avatar.
+///
+/// Replaces a generic "Conversations" app bar. The screen is the app's home, and
+/// a personal header reads as arrival rather than as a list view — the same move
+/// the reference designs make.
+class _GreetingHeader extends StatelessWidget {
+  const _GreetingHeader({
+    required this.name,
+    required this.initials,
+    required this.onOpenSettings,
+  });
+
+  final String? name;
+  final String initials;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        AppSpacing.md,
+        AppSpacing.gutter,
+        AppSpacing.lg,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _greeting(),
+                  style: context.texts.bodySmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  name ?? 'Welcome back',
+                  style: context.texts.headlineSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          GestureDetector(
+            onTap: onOpenSettings,
+            child: Semantics(
+              button: true,
+              label: 'Settings',
+              child: AppAvatar(label: initials, size: 44),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+}
+
+/// A tappable field that looks like search but opens the search screen.
+///
+/// Not a real input: search runs on-device embeddings and deserves its own
+/// screen, but a plain icon in an app bar hides the app's most distinctive
+/// feature. This advertises it.
+class _SearchPrompt extends StatelessWidget {
+  const _SearchPrompt({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final chat = context.chatTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        0,
+        AppSpacing.gutter,
+        AppSpacing.lg,
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.allPill,
+        child: Container(
+          height: AppSizes.minTapTarget,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceContainerLowest,
+            borderRadius: AppRadius.allPill,
+            border: Border.all(color: context.colors.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search_rounded,
+                size: AppSizes.iconMd,
+                color: context.colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  'Search your history',
+                  style: context.texts.bodyMedium?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              AppBadge(
+                label: 'On-device',
+                icon: Icons.memory_rounded,
+                color: chat.onDeviceAccent,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ConversationList extends ConsumerWidget {
   const _ConversationList({required this.conversations});
 
@@ -117,15 +235,18 @@ class _ConversationList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Cards on the canvas rather than tiles separated by rules: each thread is a
+    // discrete object, and the tonal step does the separating so no divider is
+    // needed.
     return ListView.separated(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xxxl * 2),
-      itemCount: conversations.length,
-      separatorBuilder: (_, _) => Divider(
-        height: 1,
-        indent: AppSpacing.gutter,
-        endIndent: AppSpacing.gutter,
-        color: context.colors.outlineVariant,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        0,
+        AppSpacing.gutter,
+        AppSpacing.xxxl * 2,
       ),
+      itemCount: conversations.length,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
         final conversation = conversations[index];
         return _ConversationTile(conversation: conversation);
@@ -144,8 +265,11 @@ class _ConversationTile extends ConsumerWidget {
     return Dismissible(
       key: ValueKey('dismiss-${conversation.id}'),
       direction: DismissDirection.endToStart,
-      background: ColoredBox(
-        color: context.chatTheme.danger.withValues(alpha: 0.15),
+      background: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.chatTheme.danger.withValues(alpha: 0.15),
+          borderRadius: AppRadius.allLg,
+        ),
         child: Padding(
           padding: const EdgeInsets.only(right: AppSpacing.gutter),
           child: Align(
@@ -184,62 +308,75 @@ class _ConversationTile extends ConsumerWidget {
       onDismissed: (_) => ref
           .read(conversationRepositoryProvider)
           .deleteConversation(conversation.id),
-      child: ListTile(
-        onTap: () => context.push(AppRoutes.chatPath(conversation.id)),
-        leading: AppAvatar(
-          label: 'AI',
-          isAssistant: true,
-          isOnDevice: conversation.engine.isOnDevice,
-        ),
-        title: Row(
-          children: [
-            if (conversation.isPinned)
-              const Padding(
-                padding: EdgeInsets.only(right: AppSpacing.xs),
-                child: Icon(Icons.push_pin_rounded, size: 13),
-              ),
-            Expanded(
-              child: Text(
-                conversation.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        subtitle: conversation.lastMessagePreview == null
-            ? Text(
-                conversation.engine.isOnDevice
-                    ? 'On-device'
-                    : 'No messages yet',
-              )
-            : Text(
-                conversation.lastMessagePreview!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              _formatTimestamp(conversation.updatedAt),
-              style: context.texts.labelSmall?.copyWith(
-                color: context.colors.onSurfaceVariant,
-              ),
-            ),
-            if (conversation.engine.isOnDevice)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
-                child: Icon(
-                  Icons.memory_rounded,
-                  size: 13,
-                  color: context.chatTheme.onDeviceAccent,
+      child: Material(
+        color: context.colors.surfaceContainerLowest,
+        borderRadius: AppRadius.allLg,
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.allLg),
+          onTap: () => context.push(AppRoutes.chatPath(conversation.id)),
+          leading: AppAvatar(
+            label: 'AI',
+            isAssistant: true,
+            isOnDevice: conversation.engine.isOnDevice,
+          ),
+          title: Row(
+            children: [
+              if (conversation.isPinned)
+                const Padding(
+                  padding: EdgeInsets.only(right: AppSpacing.xs),
+                  child: Icon(Icons.push_pin_rounded, size: 13),
+                ),
+              Expanded(
+                child: Text(
+                  conversation.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.texts.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-          ],
+            ],
+          ),
+          subtitle: conversation.lastMessagePreview == null
+              ? Text(
+                  conversation.engine.isOnDevice
+                      ? 'On-device'
+                      : 'No messages yet',
+                )
+              : Text(
+                  conversation.lastMessagePreview!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _formatTimestamp(conversation.updatedAt),
+                style: context.texts.labelSmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+              if (conversation.engine.isOnDevice)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Icon(
+                    Icons.memory_rounded,
+                    size: 13,
+                    color: context.chatTheme.onDeviceAccent,
+                  ),
+                ),
+            ],
+          ),
+          onLongPress: () => _showActions(context, ref),
         ),
-        onLongPress: () => _showActions(context, ref),
       ),
     );
   }

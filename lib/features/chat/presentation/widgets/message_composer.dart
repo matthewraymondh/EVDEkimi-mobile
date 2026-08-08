@@ -181,20 +181,25 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
       }
     });
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: chat.composerBackground,
-        border: Border(top: BorderSide(color: chat.composerBorder)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.md,
-            AppSpacing.sm,
+    // A floating pill rather than a docked bar: it reads as something you reach
+    // for, and letting the canvas show beneath keeps the transcript feeling
+    // continuous instead of cut off by a hard edge.
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: chat.composerBackground,
+            borderRadius: AppRadius.allXl,
+            border: Border.all(color: chat.composerBorder),
           ),
+          padding: const EdgeInsets.all(AppSpacing.xs),
           child: Column(
             children: [
               if (composer.hasAttachments)

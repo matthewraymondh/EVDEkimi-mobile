@@ -32,6 +32,15 @@ abstract final class AppPalette {
   static const Color ink50 = Color(0xFFF3F8F6);
   static const Color white = Color(0xFFFFFFFF);
 
+  /// Page background in light mode.
+  ///
+  /// Deliberately *not* white. Cards and message bubbles are white, so the page
+  /// beneath them has to be a shade darker for them to read as raised surfaces —
+  /// white-on-white needs borders or shadows to separate, and both are heavier
+  /// than a two-percent tonal step. Neutral rather than teal-tinted so it stays
+  /// quiet under the brand colour.
+  static const Color canvas = Color(0xFFF4F6F9);
+
   /// Semantic status colours, defined for both themes so contrast holds.
   static const Color successLight = Color(0xFF1E7A44);
   static const Color successDark = Color(0xFF6EDBA0);

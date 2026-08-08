@@ -234,10 +234,32 @@ class _EmptyConversation extends ConsumerWidget {
 
   final String conversationId;
 
-  static const List<String> _prompts = [
-    'Explain server-sent events like I am new to it',
-    'Write a Dart function that debounces a callback',
-    'Summarise the tradeoffs of on-device inference',
+  /// Short labels with the full prompt behind them.
+  ///
+  /// Chips have to stay readable at chip size, but a three-word prompt produces
+  /// a worse answer than a specific one — so the label is short and what is
+  /// actually sent is not.
+  static const List<(String, String, IconData)> _prompts = [
+    (
+      'Explain a concept',
+      'Explain server-sent events like I am new to it',
+      Icons.school_outlined,
+    ),
+    (
+      'Write some code',
+      'Write a Dart function that debounces a callback',
+      Icons.code_rounded,
+    ),
+    (
+      'Compare options',
+      'Summarise the tradeoffs of on-device inference versus cloud inference',
+      Icons.balance_rounded,
+    ),
+    (
+      'Summarise something',
+      'Summarise the key points of the article I am about to paste',
+      Icons.notes_rounded,
+    ),
   ];
 
   @override
@@ -250,7 +272,11 @@ class _EmptyConversation extends ConsumerWidget {
           children: [
             const AppAvatar(label: 'AI', isAssistant: true, size: 56),
             const SizedBox(height: AppSpacing.lg),
-            Text('How can I help?', style: context.texts.titleLarge),
+            Text(
+              'Need anything?',
+              style: context.texts.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Conversations are stored on this device and keep working offline.',
@@ -260,19 +286,23 @@ class _EmptyConversation extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            for (final prompt in _prompts)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: OutlinedButton(
-                  onPressed: () => ref
-                      .read(chatControllerProvider(conversationId).notifier)
-                      .send(prompt),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(prompt, textAlign: TextAlign.left),
+            // Chips rather than stacked buttons: they read as suggestions to
+            // sample, not as the only four things the app can do.
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                for (final (label, prompt, icon) in _prompts)
+                  ActionChip(
+                    avatar: Icon(icon, size: AppSizes.iconSm),
+                    label: Text(label),
+                    onPressed: () => ref
+                        .read(chatControllerProvider(conversationId).notifier)
+                        .send(prompt),
                   ),
-                ),
-              ),
+              ],
+            ),
           ],
         ),
       ),

@@ -37,9 +37,9 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // screen that should feel like "you", and it anchors the eye when scanning.
     outgoingBubble: AppPalette.brandTeal,
     onOutgoingBubble: AppPalette.white,
-    // Assistant messages sit on a near-surface tint rather than a strong fill.
-    // Model output is long-form text and needs to read like a document.
-    incomingBubble: AppPalette.ink50,
+    // Assistant messages are white on the canvas rather than a tinted fill.
+    // Model output is long-form text and needs to read like a document page.
+    incomingBubble: AppPalette.white,
     onIncomingBubble: AppPalette.ink900,
     bubbleBorder: AppPalette.ink100,
     caret: AppPalette.brandTeal,

@@ -24,9 +24,11 @@ abstract final class AppTheme {
         // ignore: avoid_redundant_argument_values
         brightness: Brightness.light,
       ).copyWith(
-        surface: AppPalette.white,
+        // Canvas behind, white on top: cards and bubbles are raised by tone
+        // rather than by borders or shadows.
+        surface: AppPalette.canvas,
         surfaceContainerLowest: AppPalette.white,
-        surfaceContainerLow: AppPalette.ink50,
+        surfaceContainerLow: AppPalette.white,
         surfaceContainer: AppPalette.ink50,
         surfaceContainerHigh: AppPalette.ink100,
         onSurface: AppPalette.ink900,

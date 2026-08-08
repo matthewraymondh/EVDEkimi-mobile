@@ -86,8 +86,12 @@ class OnDeviceEngine implements InferenceEngine {
   @override
   EngineCapabilities get capabilities => const EngineCapabilities(
     supportsStreaming: true,
-    // No vision model on device; OCR text is extracted separately by ML Kit and
-    // folded into the prompt as plain text instead.
+    // No vision model on device — it cannot see a picture. It can still answer
+    // *about* one: ML Kit reads the text off it locally and that arrives as
+    // `InferenceRequest.recognisedText`, which `_composeFromImage` quotes back
+    // and matches against the user's history. Reading characters and
+    // understanding an image are different problems; only the first is solved
+    // here, and `supportsVision` is about the second.
     supportsVision: false,
     requiresNetwork: false,
     maxContextTokens: 2048,
@@ -108,6 +112,18 @@ class OnDeviceEngine implements InferenceEngine {
         )
         .content;
 
+    // An image with words in it is the one case where this engine has something
+    // a cloud model would not do better: the text is already here, read on this
+    // device, and it can be matched against the user's own history without a
+    // network. Answered before classification because the intent of "what is
+    // this?" is the image, not the sentence.
+    if (request.recognisedText.isNotEmpty) {
+      yield const InferenceStatus('Reading the image on-device…');
+      final response = await _composeFromImage(request.recognisedText, prompt);
+      yield* _emit(response, stopwatch);
+      return;
+    }
+
     yield const InferenceStatus('Running on-device model…');
 
     final prediction = await _model.predict(prompt);
@@ -127,9 +143,15 @@ class OnDeviceEngine implements InferenceEngine {
     );
 
     final response = await _compose(prompt, prediction);
+    yield* _emit(response, stopwatch);
+  }
 
-    // Stream in word-sized chunks. Splitting on whitespace but keeping the
-    // trailing space means the reassembled text is byte-identical to `response`.
+  /// Streams a composed answer word by word and closes the run.
+  ///
+  /// Split out so both paths — classified and image-led — pace, cancel and
+  /// report latency identically. Splitting on whitespace but keeping the
+  /// trailing space means the reassembled text is byte-identical to [response].
+  Stream<InferenceEvent> _emit(String response, Stopwatch stopwatch) async* {
     final chunks = _chunk(response);
     for (final chunk in chunks) {
       // Cancelling the subscription makes this delay the abort point, so a
@@ -143,6 +165,94 @@ class OnDeviceEngine implements InferenceEngine {
       outputTokens: chunks.length,
       latency: stopwatch.elapsed,
     );
+  }
+
+  /// Answers from text read out of an attached image.
+  ///
+  /// The one thing this engine does that a cloud model would not do better, and
+  /// it does it with no network at all: ML Kit has already read the picture on
+  /// this device, so the words are here, and the same local embeddings that
+  /// power search can match them against what the user has said before.
+  ///
+  /// It quotes rather than interprets, which is the honest division. Reading
+  /// characters off an image and understanding what they mean are different
+  /// problems, and only the first one is solved locally.
+  Future<String> _composeFromImage(
+    List<String> recognised,
+    String prompt,
+  ) async {
+    final text = recognised.join('\n\n').trim();
+    final characters = text.length;
+    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+
+    final buffer = StringBuffer()
+      ..writeln(
+        'I read **$characters characters** ($words words) out of your image '
+        'on this device. No network, and the picture never left the phone.',
+      )
+      ..writeln()
+      ..writeln('> ${_excerpt(text).replaceAll('\n', '\n> ')}')
+      ..writeln();
+
+    // Search on the image's words, not the typed question — the point is to
+    // find what the user has already said about whatever is in the picture.
+    final hits = await _knowledge.findSimilar(text);
+    final relevant = hits
+        .where((hit) => hit.score >= _relevanceThreshold)
+        .toList(growable: false);
+
+    if (relevant.isEmpty) {
+      buffer.writeln('Nothing in your saved messages looks related to it yet.');
+    } else {
+      buffer
+        ..writeln(
+          'It matches ${relevant.length} '
+          '${relevant.length == 1 ? 'message' : 'messages'} already in your '
+          'history:',
+        )
+        ..writeln();
+      for (final hit in relevant) {
+        buffer
+          ..writeln(
+            '**${hit.conversationTitle}** · ${_relativeDay(hit.createdAt)}',
+          )
+          ..writeln('> ${_excerpt(hit.text).replaceAll('\n', '\n> ')}')
+          ..writeln();
+      }
+    }
+
+    buffer.write(
+      _isQuestion(prompt)
+          ? '_I can read an image and search it against your history offline, '
+                'but working out what it **means** needs a cloud model — '
+                'reconnect and ask again._'
+          : '_Recognised with ML Kit and matched with on-device embeddings. '
+                'None of this touched the network._',
+    );
+    return buffer.toString();
+  }
+
+  /// Whether the user asked something, as opposed to just sending a photo.
+  ///
+  /// Crude on purpose. It picks between two closing lines and nothing else, so
+  /// a wrong guess costs one sentence — not worth a model call.
+  static bool _isQuestion(String prompt) {
+    final trimmed = prompt.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.endsWith('?')) return true;
+    return _interrogative.hasMatch(trimmed.toLowerCase());
+  }
+
+  static final RegExp _interrogative = RegExp(
+    r'^(what|who|where|when|why|how|is|are|can|could|should|does|do|apa|siapa|'
+    r'di ?mana|kapan|kenapa|mengapa|bagaimana|berapa|bisa)\b',
+  );
+
+  /// Trims a block to something that reads as a quotation rather than a dump.
+  static String _excerpt(String text, {int limit = 280}) {
+    final normalised = text.replaceAll(RegExp(r'\n{2,}'), '\n').trim();
+    if (normalised.length <= limit) return normalised;
+    return '${normalised.substring(0, limit).trimRight()}…';
   }
 
   /// Builds the answer for a classified prompt.

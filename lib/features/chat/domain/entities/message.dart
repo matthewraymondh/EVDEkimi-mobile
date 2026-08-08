@@ -288,14 +288,28 @@ class Message extends Equatable {
     return [content, ...extracted].join('\n').trim();
   }
 
+  /// Text recognised in this message's images, on the device.
+  List<String> get recognisedText => attachments
+      .map((attachment) => attachment.extractedText)
+      .whereType<String>()
+      .map((text) => text.trim())
+      .where((text) => text.isNotEmpty)
+      .toList(growable: false);
+
   /// Converts to the AI layer's prompt type.
+  ///
+  /// Carries what the user typed and nothing else. OCR text used to be folded in
+  /// here, which read as harmless — the cloud model does need it inline — but it
+  /// meant the local classifier saw the image's words as part of the question.
+  /// It now travels as `InferenceRequest.recognisedText`, and each engine folds
+  /// it in or keeps it apart according to what it can actually do with it.
   PromptTurn toPromptTurn() => PromptTurn(
     role: switch (role) {
       MessageRole.user => PromptRole.user,
       MessageRole.assistant => PromptRole.assistant,
       MessageRole.system => PromptRole.system,
     },
-    content: searchableText.isEmpty ? content : searchableText,
+    content: content,
   );
 
   Message copyWith({

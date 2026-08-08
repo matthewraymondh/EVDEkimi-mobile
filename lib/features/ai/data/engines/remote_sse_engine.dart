@@ -122,19 +122,62 @@ class RemoteSseEngine implements InferenceEngine {
     );
   }
 
-  Map<String, dynamic> _buildBody(InferenceRequest request) => {
-    'model': request.modelId,
-    'stream': true,
-    'temperature': request.temperature,
-    'max_tokens': request.maxOutputTokens,
-    'messages': request.resolvedTurns
-        .map(
-          (turn) => request.imageUrls.isEmpty || turn.role != PromptRole.user
-              ? turn.toJson()
-              : _multimodalTurn(turn, request.imageUrls),
-        )
-        .toList(growable: false),
-  };
+  Map<String, dynamic> _buildBody(InferenceRequest request) {
+    final turns = _withRecognisedText(
+      request.resolvedTurns,
+      request.recognisedText,
+    );
+
+    return {
+      'model': request.modelId,
+      'stream': true,
+      'temperature': request.temperature,
+      'max_tokens': request.maxOutputTokens,
+      'messages': turns
+          .map(
+            (turn) => request.imageUrls.isEmpty || turn.role != PromptRole.user
+                ? turn.toJson()
+                : _multimodalTurn(turn, request.imageUrls),
+          )
+          .toList(growable: false),
+    };
+  }
+
+  /// Folds on-device OCR text into the last user turn.
+  ///
+  /// A chat completions API takes message content and nothing else, so text read
+  /// from an image has to arrive inline or not at all. It is labelled rather
+  /// than silently appended: a model handed a wall of unattributed text after a
+  /// short question tends to answer the text, whereas naming its source lets it
+  /// treat the words as evidence about the question.
+  ///
+  /// Sent even to vision-capable models, and deliberately. The image is going up
+  /// too, but OCR has already run locally and costs nothing to include — and if
+  /// the upload failed, this is the only trace of what the picture said.
+  static List<PromptTurn> _withRecognisedText(
+    List<PromptTurn> turns,
+    List<String> recognised,
+  ) {
+    if (recognised.isEmpty) return turns;
+
+    final lastUser = turns.lastIndexWhere(
+      (turn) => turn.role == PromptRole.user,
+    );
+    if (lastUser < 0) return turns;
+
+    final block = recognised.join('\n\n');
+    final original = turns[lastUser];
+    final labelled =
+        '${original.content}\n\n'
+        "[Text read from the attached image on the user's device]\n"
+        '$block';
+
+    return [
+      ...turns.take(lastUser),
+      PromptTurn(role: original.role, content: labelled.trim()),
+      ...turns.skip(lastUser + 1),
+    ];
+  }
 
   /// OpenAI-style multimodal content: a list of typed parts instead of a string.
   Map<String, dynamic> _multimodalTurn(

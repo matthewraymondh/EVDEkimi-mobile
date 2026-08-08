@@ -188,6 +188,39 @@ function composeReply(messages) {
     return 'I did not catch that — what are you looking for?';
   }
 
+  // The client labels text it read off an attached image before sending it, so
+  // the reply can show the round trip actually happened. A real model would do
+  // this on its own; a keyword mock has to be told, and without it the OCR
+  // feature works perfectly and is invisible in every answer.
+  const ocr = prompt.match(
+    /\[Text read from the attached image on the user's device\]\n([\s\S]+)$/,
+  );
+  if (ocr) {
+    const read = ocr[1].trim();
+    const asked = prompt.slice(0, ocr.index).trim();
+    const lines = read.split('\n').filter(Boolean);
+
+    return [
+      `I can see what your image says — ${read.length} characters came through,`,
+      'read on your device before anything was sent.',
+      '',
+      '> ' + lines.slice(0, 6).join('\n> '),
+      // Only this entry is conditional; `null` drops out and the deliberate
+      // blank lines above survive, which a truthiness filter would not allow.
+      lines.length > 6 ? `> …and ${lines.length - 6} more lines.` : null,
+      '',
+      asked
+        ? `You asked: **${asked}**`
+        : 'You did not ask anything alongside it, so here is what stands out.',
+      '',
+      'If this is a listing or a certificate, tell me which part you want',
+      'checked — the price, the term, or the certificate class — and I will',
+      'take it from there.',
+    ]
+      .filter((line) => line !== null)
+      .join('\n');
+  }
+
   if (/^(hi|hello|hey|halo|hai|yo|good morning|selamat)\b/.test(lower)) {
     return [
       'Selamat datang — welcome to **EVDEkimi**.',

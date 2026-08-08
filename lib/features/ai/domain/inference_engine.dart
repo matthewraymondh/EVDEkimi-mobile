@@ -36,6 +36,7 @@ class InferenceRequest extends Equatable {
     this.temperature = 0.7,
     this.maxOutputTokens = 1024,
     this.imageUrls = const [],
+    this.recognisedText = const [],
     this.conversationId,
   });
 
@@ -50,6 +51,22 @@ class InferenceRequest extends Equatable {
 
   /// Remote URLs of images to attach, for vision-capable models.
   final List<String> imageUrls;
+
+  /// Text read out of the latest user message's images, on the device.
+  ///
+  /// Carried as its own field rather than pre-mixed into [turns], because the
+  /// two engines need it in opposite forms. A remote model only accepts message
+  /// content, so the cloud engine folds this back into the last user turn on the
+  /// way out. The on-device engine needs it kept apart: it is a classifier, and
+  /// feeding it a page of receipt text concatenated onto "read this" classifies
+  /// the receipt rather than the question — which is exactly what happened when
+  /// this was folded in upstream, and why an image of a keyboard came back as a
+  /// question about property law.
+  ///
+  /// Separating it also lets the local engine do something honest with an image
+  /// offline: it cannot see the picture, but it has the words, so it can quote
+  /// them back and search the user's history for them.
+  final List<String> recognisedText;
 
   /// Passed through for logging/telemetry correlation only.
   final String? conversationId;
@@ -69,6 +86,7 @@ class InferenceRequest extends Equatable {
     temperature,
     maxOutputTokens,
     imageUrls,
+    recognisedText,
   ];
 }
 

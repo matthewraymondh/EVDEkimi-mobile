@@ -86,6 +86,31 @@ When the classifier reports `recall` ("what did I say about Riverpod earlier?"),
 `OnDeviceEngine` retrieves the most similar stored messages above a 0.55 similarity
 threshold and answers by quoting them. Entirely local, and genuinely useful.
 
+### Answering from a photograph, with no network
+
+The best thing this engine does, and the only place it beats a cloud model on
+capability rather than on latency.
+
+ML Kit reads text off an attached image **on the device**, at attach time. That
+text arrives as `InferenceRequest.recognisedText`, and `OnDeviceEngine` quotes it
+back and runs the same local embeddings over it to find related messages in the
+user's own history. Photograph a listing on a wall in Canggu with no signal, and
+the app tells you what it says and that you asked about that street last week.
+Nothing leaves the phone at any point.
+
+It quotes rather than interprets, which is the honest division: reading
+characters off an image and understanding what they mean are different problems,
+and only the first is solved locally.
+
+**Why OCR text is a separate field.** It used to be concatenated onto the user's
+message before reaching the engines, which reads as harmless — the cloud model
+does need it inline. But the local model is a seven-way intent classifier, so it
+was classifying the *contents of the photograph* rather than the question about
+it. A picture of a keyboard captioned "read this" came back as an answer about
+Indonesian property law. The two engines need it in opposite forms, so it travels
+apart and each folds it in or keeps it separate according to what it can do with
+it. `test/features/ai/recognised_text_routing_test.dart` pins both directions.
+
 ### Engine routing
 
 `isAvailable()` on the model decides whether the on-device path can serve a request

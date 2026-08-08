@@ -507,11 +507,18 @@ class ChatRepositoryImpl implements ChatRepository {
       supportsVision: engine.capabilities.supportsVision,
     );
 
+    // Only the message being answered. Older images' text is already in the
+    // history as prose, and re-sending every receipt the user ever photographed
+    // would eat the context window for no benefit.
+    final userMessage = await _messageDao.findById(userMessageId);
+    final recognisedText = userMessage?.recognisedText ?? const <String>[];
+
     final request = InferenceRequest(
       modelId: decision.modelId,
       turns: history,
       systemPrompt: _systemPrompt,
       imageUrls: imageUrls,
+      recognisedText: recognisedText,
       conversationId: conversationId,
     );
 

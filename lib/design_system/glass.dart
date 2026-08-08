@@ -169,6 +169,55 @@ class AppBackdrop extends StatelessWidget {
   }
 }
 
+/// An app bar that becomes a glass pane when glass is enabled.
+///
+/// Only meaningful on a `Scaffold` with `extendBodyBehindAppBar: true` — a bar
+/// with opaque layout beneath it has nothing to refract, and would look like a
+/// slightly cloudy solid bar. Screens using this therefore pad their scrollable
+/// by [preferredSize] plus the status-bar inset, so content passes *underneath*
+/// rather than starting below.
+///
+/// The glass lives in `flexibleSpace` rather than replacing the AppBar, so
+/// titles, leading buttons, actions, `bottom` widgets and the automatic back
+/// button all keep working exactly as Material implements them.
+class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const GlassAppBar({
+    this.title,
+    this.actions,
+    this.bottom,
+    this.leading,
+    super.key,
+  });
+
+  final Widget? title;
+  final List<Widget>? actions;
+  final PreferredSizeWidget? bottom;
+  final Widget? leading;
+
+  @override
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
+
+  @override
+  Widget build(BuildContext context) {
+    final isGlass = GlassScope.of(context);
+
+    return AppBar(
+      title: title,
+      actions: actions,
+      bottom: bottom,
+      leading: leading,
+      backgroundColor: isGlass ? Colors.transparent : null,
+      // Material's scroll-under tint would fight the glass, which already
+      // conveys "content is passing beneath me" far better than a colour shift.
+      scrolledUnderElevation: 0,
+      flexibleSpace: isGlass
+          ? const GlassSurface(cornerRadius: 0, child: SizedBox.expand())
+          : null,
+    );
+  }
+}
+
 /// Applies the app's glass preference on top of the system's.
 ///
 /// Only forces the fallback when the user has switched glass *off*. Passing

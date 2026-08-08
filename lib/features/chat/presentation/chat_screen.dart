@@ -1,4 +1,5 @@
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
+import 'package:evdekimi_ai/design_system/glass.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/design_system/widgets/app_widgets.dart';
 import 'package:evdekimi_ai/di/providers.dart';
@@ -75,7 +76,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(
+      // Required for the glass bar to mean anything: the transcript has to pass
+      // underneath it rather than starting below it.
+      extendBodyBehindAppBar: true,
+      appBar: GlassAppBar(
+        // The offline banner rides under the bar instead of sitting in the body.
+        // With the body extending behind the bar it would otherwise be hidden,
+        // and attached to the chrome is where it belongs anyway.
+        bottom: isOnline
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(36),
+                child: OfflineBanner(
+                  isVisible: !isOnline,
+                  pendingCount: pendingCount,
+                ),
+              ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -103,32 +119,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          OfflineBanner(isVisible: !isOnline, pendingCount: pendingCount),
-          Expanded(
-            child: messagesAsync.when(
-              loading: () => messages.isEmpty
-                  ? const SkeletonList(itemCount: 4)
-                  : _buildList(messages, isGenerating: isGenerating),
-              error: (error, _) => EmptyStateView(
-                icon: Icons.error_outline_rounded,
-                title: "Couldn't load this conversation",
-                message: '$error',
-                actionLabel: 'Retry',
-                onAction: () =>
-                    ref.invalidate(messagesProvider(widget.conversationId)),
+      body: AppBackdrop(
+        child: Column(
+          children: [
+            Expanded(
+              child: messagesAsync.when(
+                loading: () => messages.isEmpty
+                    ? const SkeletonList(itemCount: 4)
+                    : _buildList(messages, isGenerating: isGenerating),
+                error: (error, _) => EmptyStateView(
+                  icon: Icons.error_outline_rounded,
+                  title: "Couldn't load this conversation",
+                  message: '$error',
+                  actionLabel: 'Retry',
+                  onAction: () =>
+                      ref.invalidate(messagesProvider(widget.conversationId)),
+                ),
+                data: (data) => data.isEmpty
+                    ? _EmptyConversation(conversationId: widget.conversationId)
+                    : _buildList(data, isGenerating: isGenerating),
               ),
-              data: (data) => data.isEmpty
-                  ? _EmptyConversation(conversationId: widget.conversationId)
-                  : _buildList(data, isGenerating: isGenerating),
             ),
-          ),
-          MessageComposer(
-            conversationId: widget.conversationId,
-            isGenerating: isGenerating,
-          ),
-        ],
+            MessageComposer(
+              conversationId: widget.conversationId,
+              isGenerating: isGenerating,
+            ),
+          ],
+        ),
       ),
       floatingActionButton: _userScrolledAway && messages.isNotEmpty
           ? FloatingActionButton.small(
@@ -148,10 +165,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // `reverse: true` is what keeps the newest message pinned to the bottom while
     // tokens stream in, without any scroll maths: the viewport grows downward from
     // offset 0. It also means the list does not jump when older history loads.
+    // Top padding clears the glass bar. The list is reversed, so this is the
+    // padding messages scroll *into* as they move up — which is the whole point:
+    // seeing the transcript refract through the bar is what makes it read as
+    // glass rather than a tinted strip.
+    final barHeight =
+        MediaQuery.paddingOf(context).top +
+        kToolbarHeight +
+        (ref.read(isOnlineProvider) ? 0 : 36);
+
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      padding: EdgeInsets.only(
+        top: barHeight + AppSpacing.md,
+        bottom: AppSpacing.md,
+      ),
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final message = messages[messages.length - 1 - index];

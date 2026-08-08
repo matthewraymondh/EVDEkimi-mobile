@@ -1,6 +1,7 @@
 import 'package:evdekimi_ai/core/logging/log_record.dart';
 import 'package:evdekimi_ai/design_system/app_theme.dart';
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
+import 'package:evdekimi_ai/design_system/glass.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/design_system/widgets/app_widgets.dart';
 import 'package:evdekimi_ai/di/providers.dart';
@@ -39,7 +40,8 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
             .toList(growable: false);
 
         return Scaffold(
-          appBar: AppBar(
+          extendBodyBehindAppBar: true,
+          appBar: GlassAppBar(
             title: const Text('Log console'),
             actions: [
               IconButton(
@@ -59,46 +61,52 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
               ),
             ],
           ),
-          body: Column(
-            children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.gutter,
-                  vertical: AppSpacing.sm,
+          body: AppBackdrop(
+            child: Column(
+              children: [
+                SizedBox(
+                  height: MediaQuery.paddingOf(context).top + kToolbarHeight,
                 ),
-                child: Row(
-                  children: [
-                    for (final level in LogLevel.values)
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSpacing.sm),
-                        child: ChoiceChip(
-                          label: Text(level.label),
-                          selected: _minimumLevel == level,
-                          onSelected: (_) =>
-                              setState(() => _minimumLevel = level),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.gutter,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      for (final level in LogLevel.values)
+                        Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.sm),
+                          child: ChoiceChip(
+                            label: Text(level.label),
+                            selected: _minimumLevel == level,
+                            onSelected: (_) =>
+                                setState(() => _minimumLevel = level),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: records.isEmpty
-                    ? const EmptyStateView(
-                        icon: Icons.receipt_long_outlined,
-                        title: 'No logs at this level',
-                        message: 'Lower the threshold or use the app a little.',
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        itemCount: records.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) =>
-                            _LogRow(record: records[index]),
-                      ),
-              ),
-            ],
+                const Divider(height: 1),
+                Expanded(
+                  child: records.isEmpty
+                      ? const EmptyStateView(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'No logs at this level',
+                          message:
+                              'Lower the threshold or use the app a little.',
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          itemCount: records.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) =>
+                              _LogRow(record: records[index]),
+                        ),
+                ),
+              ],
+            ),
           ),
         );
       },

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:evdekimi_ai/app/routes.dart';
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
+import 'package:evdekimi_ai/design_system/glass.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/design_system/widgets/app_widgets.dart';
 import 'package:evdekimi_ai/di/providers.dart';
@@ -77,7 +78,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      extendBodyBehindAppBar: true,
+      appBar: GlassAppBar(
         title: const Text('Search history'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -86,36 +88,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               : const SizedBox(height: 1),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.gutter),
-            child: TextField(
-              controller: _controller,
-              autofocus: true,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                hintText: 'What did I ask about…',
-                prefixIcon: Icon(Icons.search_rounded),
-              ),
-              onChanged: _onQueryChanged,
+      body: AppBackdrop(
+        child: Column(
+          children: [
+            // Clears the glass bar above.
+            SizedBox(
+              height: MediaQuery.paddingOf(context).top + kToolbarHeight,
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
-            child: Row(
-              children: [
-                AppBadge(
-                  label: 'On-device · no network',
-                  icon: Icons.memory_rounded,
-                  color: context.chatTheme.onDeviceAccent,
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.gutter),
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                decoration: const InputDecoration(
+                  hintText: 'What did I ask about…',
+                  prefixIcon: Icon(Icons.search_rounded),
                 ),
-              ],
+                onChanged: _onQueryChanged,
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(child: _buildResults()),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.gutter,
+              ),
+              child: Row(
+                children: [
+                  AppBadge(
+                    label: 'On-device · no network',
+                    icon: Icons.memory_rounded,
+                    color: context.chatTheme.onDeviceAccent,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Expanded(child: _buildResults()),
+          ],
+        ),
       ),
     );
   }

@@ -75,6 +75,12 @@ minor-versioned platforms — there is no plain `android-37`. Install it with:
 sdkmanager "platforms;android-37.0"
 ```
 
+**Windows: keep the checkout path short.** `liquid_glass_widgets` ships fragment
+shaders that Flutter compiles into `build/…/flutter_assets/packages/…`, and that
+path plus a deeply nested checkout can pass the 260-character `MAX_PATH` limit —
+which surfaces as `ShaderCompilerException … exit code 1`, naming the shader
+rather than the path. Cloning somewhere like `C:\dev\evdekimi-mobile` avoids it.
+
 `android/settings.gradle.kts` aligns every plugin module onto that platform and
 drags stale plugins forward (`onnxruntime` 1.4.1 still pins `compileSdk 33`, which
 modern AndroidX rejects). The comment there explains why the fix has to live in

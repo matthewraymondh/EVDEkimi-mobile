@@ -34,7 +34,19 @@ android {
     // bundling every one into a fat binary.
     splits {
         abi {
-            isEnable = true
+            // Off for `bundleRelease`. An app bundle does its own per-ABI split
+            // at the store, so having Gradle also split produces four shrunk
+            // resource sets where the bundle task expects one, and it fails
+            // with "Multiple shrunk-resources files found".
+            //
+            // The two are alternatives, not layers: splits are how you hand
+            // someone an APK for a known device, bundles are how you ship. This
+            // keeps the APK path splitting and lets the AAB path do its own —
+            // the alternative, deleting the block, would make every debug APK a
+            // fat one carrying three ABIs of ONNX Runtime.
+            isEnable = !gradle.startParameter.taskNames.any {
+                it.contains("Bundle", ignoreCase = true)
+            }
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true
@@ -53,9 +65,21 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Signed with the debug keys so `flutter run --release` and CI's
+            // unsigned artefact both work. A real release needs a keystore and
+            // a signing config read from CI secrets.
             signingConfig = signingConfigs.getByName("debug")
+
+            // R8 needs rules the plugins do not ship. See proguard-rules.pro:
+            // ML Kit references four script recognizers this app does not
+            // depend on, and ONNX Runtime is reached over JNI where R8 cannot
+            // see the references. Without this the release build fails outright
+            // and only the release build — `flutter run` never invokes R8, so
+            // it hides until CI or a store upload.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

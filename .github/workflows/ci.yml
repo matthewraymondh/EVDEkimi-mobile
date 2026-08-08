@@ -131,9 +131,16 @@ jobs:
         run: flutter build apk --debug
 
       - name: Build release AAB (unsigned)
-        # Catches R8/ProGuard problems that a debug build hides.
+        # Catches R8 and resource-shrinking problems that a debug build hides,
+        # because `flutter run` never invokes either.
+        #
+        # This was `continue-on-error: true`, which made it decorative: the
+        # release build had in fact been failing for two separate reasons — R8
+        # could not resolve four ML Kit script recognizers the plugin references
+        # but this app does not depend on, and the ABI splits that produce the
+        # per-device APKs are mutually exclusive with bundling. A step allowed
+        # to fail reports neither.
         run: flutter build appbundle --release
-        continue-on-error: true
 
       - uses: actions/upload-artifact@v4
         with:

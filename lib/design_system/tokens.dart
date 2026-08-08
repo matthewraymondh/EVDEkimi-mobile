@@ -158,8 +158,12 @@ abstract final class AppSizes {
   /// Height of the floating navigation bar.
   static const double navBar = 64;
 
-  /// Gap between the navigation bar and the safe-area edge.
-  static const double navBarGap = AppSpacing.lg;
+  /// Inset of the dock from every edge it floats against.
+  ///
+  /// One value for left, right and bottom: the dock is a free-floating object,
+  /// and an object that sits closer to one edge than another reads as anchored
+  /// to that edge instead.
+  static const double navBarGap = AppSpacing.xl;
 
   /// Bottom padding a scrollable inside the shell must reserve.
   ///

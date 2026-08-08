@@ -70,6 +70,11 @@ class GlassSurface extends StatelessWidget {
     this.fallbackColor,
     this.padding,
     this.blur = defaultBlur,
+    this.fill,
+    this.stroke,
+    this.highlight,
+    this.strokeWidth = 1,
+    this.highlightWidth = 1,
     super.key,
   });
 
@@ -86,6 +91,19 @@ class GlassSurface extends StatelessWidget {
 
   /// Backdrop blur for this surface, in logical pixels.
   final double blur;
+
+  /// Overrides for the surface's own material, all defaulting to `ChatTheme`.
+  ///
+  /// Present because the dock is genuinely a different material from the rest of
+  /// the chrome: a composer is a film you type through, a floating dock is a
+  /// slab you rest controls on. It needs several times the fill and a much
+  /// stronger edge, and expressing that as arguments keeps one widget rather
+  /// than forking a second glass implementation for one caller.
+  final Color? fill;
+  final Color? stroke;
+  final Color? highlight;
+  final double strokeWidth;
+  final double highlightWidth;
 
   /// Blur for chrome that sits over quiet, mostly-static content.
   ///
@@ -109,13 +127,16 @@ class GlassSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final chat = context.chatTheme;
     final shape = LiquidRoundedSuperellipse(borderRadius: cornerRadius);
+    final edgeColor = stroke ?? chat.glassStroke;
 
     if (!GlassScope.of(context)) {
       return Container(
         padding: padding,
         decoration: ShapeDecoration(
           color: fallbackColor ?? chat.raisedSurface,
-          shape: shape.copyWith(side: BorderSide(color: chat.glassStroke)),
+          shape: shape.copyWith(
+            side: BorderSide(color: edgeColor, width: strokeWidth),
+          ),
           shadows: shadows,
         ),
         child: child,
@@ -128,8 +149,10 @@ class GlassSurface extends StatelessWidget {
       decoration: ShapeDecoration(shape: shape, shadows: shadows),
       child: _GlassEdge(
         shape: shape,
-        stroke: chat.glassStroke,
-        highlight: chat.glassHighlight,
+        stroke: edgeColor,
+        highlight: highlight ?? chat.glassHighlight,
+        strokeWidth: strokeWidth,
+        highlightWidth: highlightWidth,
         child: GlassContainer(
           // A superellipse, not a circular-radius rounded rect. It is what
           // iOS 26 uses, and the continuous curvature is most of why the corners
@@ -137,7 +160,7 @@ class GlassSurface extends StatelessWidget {
           shape: shape,
           settings: LiquidGlassSettings(
             blur: blur,
-            glassColor: chat.glassFill,
+            glassColor: fill ?? chat.glassFill,
             // No boost at all. The package raises saturation by default so
             // glass looks lively over colourful content, but on a neutral
             // palette the only thing there is to boost is the single accent —
@@ -178,12 +201,16 @@ class _GlassEdge extends StatelessWidget {
     required this.shape,
     required this.stroke,
     required this.highlight,
+    required this.strokeWidth,
+    required this.highlightWidth,
     required this.child,
   });
 
   final LiquidShape shape;
   final Color stroke;
   final Color highlight;
+  final double strokeWidth;
+  final double highlightWidth;
   final Widget child;
 
   @override
@@ -195,6 +222,8 @@ class _GlassEdge extends StatelessWidget {
         shape: shape,
         stroke: stroke,
         highlight: highlight,
+        strokeWidth: strokeWidth,
+        highlightWidth: highlightWidth,
       ),
       child: child,
     );
@@ -206,11 +235,15 @@ class _GlassEdgePainter extends CustomPainter {
     required this.shape,
     required this.stroke,
     required this.highlight,
+    required this.strokeWidth,
+    required this.highlightWidth,
   });
 
   final LiquidShape shape;
   final Color stroke;
   final Color highlight;
+  final double strokeWidth;
+  final double highlightWidth;
 
   /// Fraction of the panel's height the highlight survives to.
   ///
@@ -223,7 +256,7 @@ class _GlassEdgePainter extends CustomPainter {
     // Inset by half the stroke so a 1px line lands *inside* the shape rather
     // than straddling it, which would leave half a pixel of it outside the clip
     // and read as a soft edge.
-    final rect = (Offset.zero & size).deflate(0.5);
+    final rect = (Offset.zero & size).deflate(strokeWidth / 2);
     if (rect.isEmpty) return;
     final path = shape.getOuterPath(rect);
 
@@ -231,7 +264,7 @@ class _GlassEdgePainter extends CustomPainter {
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
+        ..strokeWidth = strokeWidth
         ..color = stroke,
     );
 
@@ -239,7 +272,7 @@ class _GlassEdgePainter extends CustomPainter {
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
+        ..strokeWidth = highlightWidth
         ..shader = ui.Gradient.linear(
           rect.topCenter,
           Offset(rect.center.dx, rect.top + rect.height * _falloff),
@@ -252,7 +285,9 @@ class _GlassEdgePainter extends CustomPainter {
   bool shouldRepaint(_GlassEdgePainter oldDelegate) =>
       oldDelegate.shape != shape ||
       oldDelegate.stroke != stroke ||
-      oldDelegate.highlight != highlight;
+      oldDelegate.highlight != highlight ||
+      oldDelegate.strokeWidth != strokeWidth ||
+      oldDelegate.highlightWidth != highlightWidth;
 }
 
 /// The ambient wash that gives glass something to refract.

@@ -14,6 +14,10 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     required this.glassFill,
     required this.glassStroke,
     required this.glassHighlight,
+    required this.dockFill,
+    required this.dockStroke,
+    required this.dockHighlight,
+    required this.dockActive,
     required this.raisedSurface,
     required this.raisedBorder,
     required this.outgoingBubble,
@@ -53,6 +57,15 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // is invisible, so the highlight is what a bright edge actually looks like
     // there: *less* of the darkening the rest of the outline carries.
     glassHighlight: Color(0x0AFFFFFF),
+    // White at 55%, so the dock resolves toward white over a near-white page.
+    dockFill: Color(0x8CFFFFFF),
+    // Dark, not white. The reference docks use a white edge because they float
+    // over photographs; over a #F8FAFC page a white line is the page.
+    dockStroke: Color(0x1A000000),
+    // A brighter top edge in light mode means *less* of the darkening the rest
+    // of the outline carries, which is what a lit edge actually looks like here.
+    dockHighlight: Color(0x99FFFFFF),
+    dockActive: Color(0x14000000),
     raisedSurface: AppPalette.white,
     // Heavier than the glass stroke, and it has to be. A white card on a
     // #F8FAFC page is 1.05:1 — the tonal step is not a separation at all, so
@@ -90,6 +103,13 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     glassFill: Color(0x0DFFFFFF),
     glassStroke: Color(0x14FFFFFF),
     glassHighlight: Color(0x1FFFFFFF),
+    // Several times the fill of the composer, and deliberately so: a composer
+    // is a film you type through, a dock is a slab you rest controls on. Under
+    // 45% the dock stops being an object and becomes a smudge with icons in it.
+    dockFill: Color(0x73121214),
+    dockStroke: Color(0x26FFFFFF),
+    dockHighlight: Color(0x40FFFFFF),
+    dockActive: Color(0x2EFFFFFF),
     raisedSurface: AppPalette.zinc900,
     raisedBorder: Color(0x14FFFFFF),
     outgoingBubble: AppPalette.accentDeep,
@@ -129,6 +149,22 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   /// is; an edge that is brighter at the top says the thing is lit from above
   /// and has physical depth, which is the whole illusion.
   final Color glassHighlight;
+
+  /// The floating dock's own material, which is heavier than the rest of the
+  /// chrome on purpose.
+  ///
+  /// A dark fill over a near-black page is a small tonal step — deliberately.
+  /// The reference docks read as objects because of their *edges*, not their
+  /// fills: they float over photographs, where a dark pane has plenty to darken.
+  /// Over a #09090B page there is almost nothing, so [dockStroke] and
+  /// [dockHighlight] are what carry the shape, which is why both are several
+  /// times stronger than [glassStroke].
+  final Color dockFill;
+  final Color dockStroke;
+  final Color dockHighlight;
+
+  /// Fill of the capsule that glides under the selected destination.
+  final Color dockActive;
 
   /// The 1px hairline around every glass panel.
   ///
@@ -192,6 +228,10 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     Color? glassFill,
     Color? glassStroke,
     Color? glassHighlight,
+    Color? dockFill,
+    Color? dockStroke,
+    Color? dockHighlight,
+    Color? dockActive,
     Color? raisedSurface,
     Color? raisedBorder,
     Color? outgoingBubble,
@@ -218,6 +258,10 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     glassFill: glassFill ?? this.glassFill,
     glassStroke: glassStroke ?? this.glassStroke,
     glassHighlight: glassHighlight ?? this.glassHighlight,
+    dockFill: dockFill ?? this.dockFill,
+    dockStroke: dockStroke ?? this.dockStroke,
+    dockHighlight: dockHighlight ?? this.dockHighlight,
+    dockActive: dockActive ?? this.dockActive,
     raisedSurface: raisedSurface ?? this.raisedSurface,
     raisedBorder: raisedBorder ?? this.raisedBorder,
     outgoingBubble: outgoingBubble ?? this.outgoingBubble,
@@ -250,6 +294,10 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
       glassFill: Color.lerp(glassFill, other.glassFill, t)!,
       glassStroke: Color.lerp(glassStroke, other.glassStroke, t)!,
       glassHighlight: Color.lerp(glassHighlight, other.glassHighlight, t)!,
+      dockFill: Color.lerp(dockFill, other.dockFill, t)!,
+      dockStroke: Color.lerp(dockStroke, other.dockStroke, t)!,
+      dockHighlight: Color.lerp(dockHighlight, other.dockHighlight, t)!,
+      dockActive: Color.lerp(dockActive, other.dockActive, t)!,
       raisedSurface: Color.lerp(raisedSurface, other.raisedSurface, t)!,
       raisedBorder: Color.lerp(raisedBorder, other.raisedBorder, t)!,
       outgoingBubble: Color.lerp(outgoingBubble, other.outgoingBubble, t)!,

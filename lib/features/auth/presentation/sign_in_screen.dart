@@ -1,6 +1,7 @@
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/design_system/widgets/app_widgets.dart';
+import 'package:evdekimi_ai/design_system/widgets/brand_mark.dart';
 import 'package:evdekimi_ai/di/providers.dart';
 import 'package:evdekimi_ai/features/auth/presentation/auth_controller.dart';
 import 'package:flutter/material.dart';
@@ -228,25 +229,17 @@ class _Wordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: context.colors.primary.withValues(alpha: 0.14),
-            borderRadius: AppRadius.allLg,
-          ),
-          child: Icon(
-            Icons.auto_awesome_rounded,
-            color: context.colors.primary,
-            size: AppSizes.iconLg,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
+        // No tinted plate behind it. The mark already carries its own wordmark
+        // and enough negative space; boxing it added a second shape competing
+        // with the one the brand actually is.
+        const BrandMark(size: 104),
+        const SizedBox(height: AppSpacing.sm),
         Text(
-          'EVDEkimi AI',
-          style: context.texts.titleMedium?.copyWith(
-            letterSpacing: 1.2,
-            fontWeight: FontWeight.w700,
+          'AI Assistant',
+          style: context.texts.labelMedium?.copyWith(
+            letterSpacing: 2.4,
+            fontWeight: FontWeight.w600,
+            color: context.colors.onSurfaceVariant,
           ),
         ),
       ],

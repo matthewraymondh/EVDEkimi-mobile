@@ -1,5 +1,6 @@
 import 'package:evdekimi_ai/app/home_shell.dart';
 import 'package:evdekimi_ai/app/routes.dart';
+import 'package:evdekimi_ai/design_system/widgets/brand_mark.dart';
 import 'package:evdekimi_ai/di/providers.dart';
 import 'package:evdekimi_ai/features/auth/presentation/sign_in_screen.dart';
 import 'package:evdekimi_ai/features/chat/presentation/chat_screen.dart';
@@ -143,21 +144,14 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.auto_awesome_rounded,
-              size: 40,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 20),
-            const SizedBox(
-              width: 120,
-              child: LinearProgressIndicator(minHeight: 2),
-            ),
+            BrandMark(),
+            SizedBox(height: 28),
+            SizedBox(width: 120, child: LinearProgressIndicator()),
           ],
         ),
       ),

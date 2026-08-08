@@ -84,6 +84,9 @@ flutter:
     # `python tools/train_router_model.py` — both are committed so a clone
     # builds and runs on-device inference with no extra step.
     - assets/models/
+    # The company mark. Monochrome white on transparency, so it is recoloured at
+    # render time by `BrandMark` rather than shipped in two variants.
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

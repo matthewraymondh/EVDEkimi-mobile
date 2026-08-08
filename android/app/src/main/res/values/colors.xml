@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launch screen is the same in both themes, deliberately.
+         The shipped mark is white on transparency, so a light plate would
+         render it invisible — and a brand moment that inverts with the system
+         theme is not a brand moment. It resolves into the user's chosen theme
+         the instant Flutter draws its first frame. Matches AppPalette.zinc950. -->
+    <color name="launchBackground">#09090B</color>
+</resources>

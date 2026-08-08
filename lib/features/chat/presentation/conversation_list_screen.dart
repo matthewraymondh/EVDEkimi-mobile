@@ -22,42 +22,51 @@ class ConversationListScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
 
     return Scaffold(
-      body: Column(
-        children: [
-          OfflineBanner(isVisible: !isOnline, pendingCount: pendingCount),
-          _GreetingHeader(
-            name: user?.friendlyName,
-            initials: user?.initials ?? '?',
-            // `go`, not `push`: these are tabs in the shell, so switching
-            // branches is correct — pushing would stack a second copy on top of
-            // the tab that already exists.
-            onOpenSettings: () => context.go(AppRoutes.settings),
-          ),
-          _SearchPrompt(onTap: () => context.go(AppRoutes.search)),
-          Expanded(
-            child: conversationsAsync.when(
-              loading: () => const SkeletonList(),
-              error: (error, _) => EmptyStateView(
-                icon: Icons.error_outline_rounded,
-                title: "Couldn't load conversations",
-                message: '$error',
-                actionLabel: 'Retry',
-                onAction: () => ref.invalidate(conversationsProvider),
-              ),
-              data: (conversations) => conversations.isEmpty
-                  ? EmptyStateView(
-                      icon: Icons.forum_outlined,
-                      title: 'No conversations yet',
-                      message:
-                          'Start a chat. Everything is saved on this device and '
-                          'keeps working offline.',
-                      actionLabel: 'New chat',
-                      onAction: () => startNewConversation(context, ref),
-                    )
-                  : _ConversationList(conversations: conversations),
+      // This screen has no AppBar, and the app runs edge-to-edge, so nothing
+      // else consumes the status-bar inset — without this the greeting renders
+      // underneath the clock and battery icons.
+      //
+      // `bottom: false` on purpose: the floating navigation bar applies its own
+      // bottom inset, and applying it twice would leave a visible gap.
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            OfflineBanner(isVisible: !isOnline, pendingCount: pendingCount),
+            _GreetingHeader(
+              name: user?.friendlyName,
+              initials: user?.initials ?? '?',
+              // `go`, not `push`: these are tabs in the shell, so switching
+              // branches is correct — pushing would stack a second copy on top
+              // of the tab that already exists.
+              onOpenSettings: () => context.go(AppRoutes.settings),
             ),
-          ),
-        ],
+            _SearchPrompt(onTap: () => context.go(AppRoutes.search)),
+            Expanded(
+              child: conversationsAsync.when(
+                loading: () => const SkeletonList(),
+                error: (error, _) => EmptyStateView(
+                  icon: Icons.error_outline_rounded,
+                  title: "Couldn't load conversations",
+                  message: '$error',
+                  actionLabel: 'Retry',
+                  onAction: () => ref.invalidate(conversationsProvider),
+                ),
+                data: (conversations) => conversations.isEmpty
+                    ? EmptyStateView(
+                        icon: Icons.forum_outlined,
+                        title: 'No conversations yet',
+                        message:
+                            'Start a chat. Everything is saved on this device '
+                            'and keeps working offline.',
+                        actionLabel: 'New chat',
+                        onAction: () => startNewConversation(context, ref),
+                      )
+                    : _ConversationList(conversations: conversations),
+              ),
+            ),
+          ],
+        ),
       ),
       // No FloatingActionButton: the shell's navigation bar owns the primary
       // action, and two "new chat" affordances on one screen is one too many.

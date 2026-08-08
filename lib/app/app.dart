@@ -59,7 +59,7 @@ class EvdekimiApp extends ConsumerWidget {
             data: mediaQuery.copyWith(textScaler: clamped),
             // Installed above the router so every screen — including ones
             // pushed over the shell — resolves glass the same way.
-            child: GlassScope(
+            child: GlassPreference(
               isEnabled: settings.liquidGlass,
               child: child ?? const SizedBox.shrink(),
             ),

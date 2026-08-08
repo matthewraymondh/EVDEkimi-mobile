@@ -54,8 +54,7 @@ dependencies:
   permission_handler: ^13.0.0
   google_mlkit_text_recognition: ^0.16.0
   onnxruntime: ^1.4.1
-  liquid_glass_easy: ^3.5.0
-
+  liquid_glass_widgets: ^0.29.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

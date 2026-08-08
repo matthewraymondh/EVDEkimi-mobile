@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 /// Composes the app and installs global error handling.
 ///
@@ -48,6 +49,13 @@ Future<void> bootstrap() async {
 
       _installErrorHandlers(logger);
 
+      // Compiles the glass shaders before the first frame. This is not just a
+      // cosmetic warm-up: on Android devices without Vulkan, Impeller compiles
+      // GLSL on the raster thread, and if that lands while the platform is
+      // setting up its surface the system can declare an ANR. Doing it here
+      // puts the cost behind the native splash where it cannot race.
+      await LiquidGlassWidgets.initialize();
+
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
         DeviceOrientation.portraitDown,
@@ -81,7 +89,15 @@ Future<void> bootstrap() async {
       runApp(
         UncontrolledProviderScope(
           container: container,
-          child: const EvdekimiApp(),
+          // `wrap` sits outside MaterialApp by design: it installs the
+          // accessibility bridge and the adaptive-quality scope above the whole
+          // tree. `brightnessResolver` is what lets glass follow our ThemeMode
+          // rather than only the platform brightness.
+          child: LiquidGlassWidgets.wrap(
+            adaptiveQuality: true,
+            brightnessResolver: Theme.maybeBrightnessOf,
+            child: const EvdekimiApp(),
+          ),
         ),
       );
     },

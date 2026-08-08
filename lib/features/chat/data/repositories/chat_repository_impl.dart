@@ -21,6 +21,7 @@ import 'package:evdekimi_ai/features/chat/data/semantic_search_service.dart';
 import 'package:evdekimi_ai/features/chat/domain/entities/conversation.dart';
 import 'package:evdekimi_ai/features/chat/domain/entities/message.dart';
 import 'package:evdekimi_ai/features/chat/domain/repositories/chat_repository.dart';
+import 'package:evdekimi_ai/features/settings/domain/app_settings.dart';
 import 'package:uuid/uuid.dart';
 
 /// Offline-first chat, streaming, and the outbox.
@@ -43,8 +44,10 @@ class ChatRepositoryImpl implements ChatRepository {
     required ApiClient apiClient,
     required AppConfig config,
     required AppLogger logger,
+    required AppSettings Function() readSettings,
     Uuid? uuid,
-  }) : _database = database,
+  }) : _readSettings = readSettings,
+       _database = database,
        _conversationDao = conversationDao,
        _messageDao = messageDao,
        _outboxDao = outboxDao,
@@ -77,6 +80,13 @@ class ChatRepositoryImpl implements ChatRepository {
   final AppConfig _config;
   final AppLogger _logger;
   final Uuid _uuid;
+
+  /// Read lazily rather than injected as a value: settings change while the
+  /// repository lives, and rebuilding the repository to pick them up would tear
+  /// down any in-flight generation.
+  final AppSettings Function() _readSettings;
+
+  AppSettings get _settings => _readSettings();
 
   /// Generations currently in flight, keyed by conversation id.
   final Map<String, _ActiveGeneration> _active = {};
@@ -276,15 +286,21 @@ class ChatRepositoryImpl implements ChatRepository {
 
     // Fire and forget: the caller gets control back immediately and observes
     // progress through watchMessages.
-    final decision = await _engineRouter.resolve(model: model);
+    final decision = await _engineRouter.resolve(
+      model: model,
+      allowOnDeviceFallback: _settings.useOnDeviceWhenOffline,
+    );
     if (decision.canGenerateNow) {
+      // Swallowed on purpose: `_runGeneration` now rethrows so `flushOutbox` can
+      // apply backoff, but on this path the failure is already recorded on the
+      // assistant message and surfaced in the UI.
       unawaited(
         _runGeneration(
           conversationId: conversationId,
           userMessageId: userMessageId,
           assistantMessageId: assistantMessageId,
           decision: decision,
-        ),
+        ).catchError((Object _) {}),
       );
     } else {
       await _markQueued(conversationId, userMessageId, assistantMessageId);
@@ -323,15 +339,35 @@ class ChatRepositoryImpl implements ChatRepository {
       MessageColumns.engine: model.engine.name,
     });
 
-    final decision = await _engineRouter.resolve(model: model);
+    final decision = await _engineRouter.resolve(
+      model: model,
+      allowOnDeviceFallback: _settings.useOnDeviceWhenOffline,
+    );
     if (!decision.canGenerateNow) {
+      // Must enqueue, not just mark queued. Without an outbox row the flush has
+      // nothing to find, and the message sits at "queued" forever with no path
+      // back to delivery.
+      final userMessageId = existing.replyToId;
+      if (userMessageId != null && userMessageId.isNotEmpty) {
+        final userMessage = await _messageDao.findById(userMessageId);
+        await _outboxDao.enqueue(
+          messageId: userMessageId,
+          conversationId: conversationId,
+          idempotencyKey: 'msg_$userMessageId',
+          payload: {
+            'content': userMessage?.content ?? '',
+            'model_id': model.id,
+            'assistant_message_id': assistantMessageId,
+          },
+        );
+      }
       await _markQueued(
         conversationId,
-        existing.replyToId ?? assistantMessageId,
+        userMessageId ?? assistantMessageId,
         assistantMessageId,
       );
       return SendMessageOutcome(
-        userMessageId: existing.replyToId ?? '',
+        userMessageId: userMessageId ?? '',
         assistantMessageId: assistantMessageId,
         wasQueuedOffline: true,
       );
@@ -343,7 +379,7 @@ class ChatRepositoryImpl implements ChatRepository {
         userMessageId: existing.replyToId ?? '',
         assistantMessageId: assistantMessageId,
         decision: decision,
-      ),
+      ).catchError((Object _) {}),
     );
 
     return SendMessageOutcome(
@@ -358,15 +394,51 @@ class ChatRepositoryImpl implements ChatRepository {
     required String conversationId,
     required String messageId,
   }) => Result.guardAsync(() async {
+    // Clear the previous error so the bubble does not keep showing a stale one
+    // while the retry is in flight.
+    final message = await _messageDao.findById(messageId);
+    final assistantMessageId = message?.role == MessageRole.assistant
+        ? messageId
+        : await _findAssistantReplyTo(conversationId, messageId) ?? messageId;
+
+    await _messageDao.update(conversationId, assistantMessageId, {
+      MessageColumns.status: MessageStatus.queued.name,
+      MessageColumns.errorMessage: null,
+      MessageColumns.errorCode: null,
+    });
+
     await _outboxDao.markDueNow(messageId);
     final delivered = await flushOutbox();
-    final message = await _messageDao.findById(messageId);
+
     return SendMessageOutcome(
       userMessageId: messageId,
-      assistantMessageId: message?.id ?? messageId,
-      wasQueuedOffline: delivered.valueOrNull == 0,
+      assistantMessageId: assistantMessageId,
+      // `flushOutbox` short-circuits to Ok(0) when another flush is already
+      // running, so a zero count does not by itself mean "still queued" —
+      // check whether the entry actually survived instead.
+      wasQueuedOffline:
+          delivered.valueOrNull == 0 && await _isStillQueued(messageId),
     );
   });
+
+  /// The assistant message that answers [userMessageId], if there is one.
+  Future<String?> _findAssistantReplyTo(
+    String conversationId,
+    String userMessageId,
+  ) async {
+    final messages = await _messageDao.findByConversation(conversationId);
+    for (final message in messages) {
+      if (message.replyToId == userMessageId && message.isFromAssistant) {
+        return message.id;
+      }
+    }
+    return null;
+  }
+
+  Future<bool> _isStillQueued(String messageId) async {
+    final due = await _outboxDao.findDue(limit: 100);
+    return due.any((entry) => entry.messageId == messageId);
+  }
 
   @override
   Future<Result<void>> stopGeneration(String conversationId) =>
@@ -384,12 +456,21 @@ class ChatRepositoryImpl implements ChatRepository {
         await generation.subscription?.cancel();
         _active.remove(conversationId);
 
+        // Stop the throttled writer *before* the final write. It reads the live
+        // buffer, which `dispose()` clears, so a timer that survived this point
+        // would overwrite the saved partial answer with an empty one.
+        generation.persistTimer?.cancel();
+
         await _messageDao.writeStreamedContent(
           conversationId: conversationId,
           messageId: generation.assistantMessageId,
           content: generation.buffer.toString(),
           status: MessageStatus.cancelled,
         );
+
+        // Cancellation fires neither onDone nor onError, so without this the
+        // awaited completion never resolves and `flushOutbox` deadlocks with
+        // `_flushInFlight` permanently set.
         generation.dispose();
         _liveTicks.add(conversationId);
       });
@@ -434,10 +515,11 @@ class ChatRepositoryImpl implements ChatRepository {
       conversationId: conversationId,
     );
 
-    final completer = Completer<void>();
-    Timer? persistTimer;
-
     Future<void> persist({required MessageStatus status}) async {
+      // A timer callback can already be in flight when the generation ends;
+      // writing after the terminal write would resurrect a finished message as
+      // `streaming` with truncated content.
+      if (generation.isFinalised) return;
       generation.persistedLength = generation.buffer.length;
       await _messageDao.writeStreamedContent(
         conversationId: conversationId,
@@ -447,7 +529,7 @@ class ChatRepositoryImpl implements ChatRepository {
       );
     }
 
-    persistTimer = Timer.periodic(_persistInterval, (_) {
+    generation.persistTimer = Timer.periodic(_persistInterval, (_) {
       if (generation.buffer.length == generation.persistedLength) return;
       unawaited(persist(status: MessageStatus.streaming));
     });
@@ -472,7 +554,8 @@ class ChatRepositoryImpl implements ChatRepository {
             }
           },
           onError: (Object error, StackTrace stackTrace) {
-            persistTimer?.cancel();
+            // Stop the timer before the terminal write, never after.
+            generation.persistTimer?.cancel();
             unawaited(
               _finishWithError(
                 conversationId: conversationId,
@@ -480,28 +563,39 @@ class ChatRepositoryImpl implements ChatRepository {
                 generation: generation,
                 error: error,
                 stackTrace: stackTrace,
-              ).whenComplete(() {
-                if (!completer.isCompleted) completer.complete();
-              }),
+              ).whenComplete(
+                () => generation.finish(error: error, stackTrace: stackTrace),
+              ),
             );
           },
           onDone: () {
-            persistTimer?.cancel();
+            generation.persistTimer?.cancel();
             unawaited(
               _finishSuccessfully(
                 conversationId: conversationId,
                 userMessageId: userMessageId,
                 assistantMessageId: assistantMessageId,
                 generation: generation,
-              ).whenComplete(() {
-                if (!completer.isCompleted) completer.complete();
-              }),
+              ).whenComplete(generation.finish),
             );
           },
           cancelOnError: true,
         );
 
-    await completer.future;
+    await generation.completion;
+
+    // The engine reports failure through a stream callback, not by throwing, so
+    // it is re-thrown here. `flushOutbox` depends on this to apply backoff and
+    // eventually abandon an entry; without it every failed send looked delivered
+    // and retried forever. Fire-and-forget callers swallow it deliberately —
+    // `_finishWithError` has already recorded the failure on the message.
+    final failure = generation.failure;
+    if (failure != null) {
+      Error.throwWithStackTrace(
+        failure,
+        generation.failureStackTrace ?? StackTrace.current,
+      );
+    }
   }
 
   Future<void> _finishSuccessfully({
@@ -832,6 +926,13 @@ class ChatRepositoryImpl implements ChatRepository {
 }
 
 /// Mutable state for one in-flight generation.
+///
+/// This owns the *whole* lifecycle — subscription, persistence timer and
+/// completion signal — because a generation has three exits, not two: it can
+/// finish, it can fail, or it can be cancelled. Cancellation fires neither
+/// `onDone` nor `onError`, so anything wired only to those two silently never
+/// runs. Keeping all three in [finish] makes it impossible to add an exit path
+/// that forgets one of them.
 class _ActiveGeneration {
   _ActiveGeneration({
     required this.assistantMessageId,
@@ -852,14 +953,47 @@ class _ActiveGeneration {
   // ignore: cancel_subscriptions
   StreamSubscription<InferenceEvent>? subscription;
 
+  /// Throttled writer of streamed content to SQLite.
+  Timer? persistTimer;
+
+  final Completer<void> _completed = Completer<void>();
+
+  /// Resolves once the generation has reached a terminal state by any route.
+  Future<void> get completion => _completed.future;
+
+  /// Set when the stream errored, so the caller can rethrow after awaiting.
+  ///
+  /// `flushOutbox` needs the failure to apply backoff, but the error arrives on
+  /// a stream callback rather than as a thrown exception, so it is parked here.
+  Object? failure;
+  StackTrace? failureStackTrace;
+
   String? statusMessage;
   int? outputTokens;
   Duration? latency;
   int persistedLength = 0;
 
+  /// True once a terminal write has happened. The throttled persist checks this
+  /// so a timer callback already in flight cannot land *after* the final write
+  /// and resurrect a completed message as `streaming`.
+  bool isFinalised = false;
+
   bool get hasContent => buffer.isNotEmpty;
 
+  /// The single exit point. Idempotent, so racing callers are harmless.
+  void finish({Object? error, StackTrace? stackTrace}) {
+    persistTimer?.cancel();
+    persistTimer = null;
+    isFinalised = true;
+    if (error != null && failure == null) {
+      failure = error;
+      failureStackTrace = stackTrace;
+    }
+    if (!_completed.isCompleted) _completed.complete();
+  }
+
   void dispose() {
+    finish();
     subscription = null;
     buffer.clear();
   }

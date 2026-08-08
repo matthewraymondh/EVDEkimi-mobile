@@ -71,10 +71,19 @@ class EngineRouter {
     required InferenceEngine onDeviceEngine,
     required ConnectivityService connectivity,
     required AppLogger logger,
+    required String Function() fallbackRemoteModelId,
   }) : _remote = remoteEngine,
        _onDevice = onDeviceEngine,
        _connectivity = connectivity,
+       _fallbackRemoteModelId = fallbackRemoteModelId,
        _logger = logger.scoped('ai.router');
+
+  /// Which cloud model to use when an on-device request has to be redirected.
+  ///
+  /// A callback rather than a value: the user can change their default model at
+  /// any time, and rebuilding the router to observe that would tear down live
+  /// generations.
+  final String Function() _fallbackRemoteModelId;
 
   final InferenceEngine _remote;
   final InferenceEngine _onDevice;
@@ -117,13 +126,17 @@ class EngineRouter {
 
     // An on-device model was requested but the runtime is not usable.
     if (await _remote.isAvailable()) {
+      // The model id must change with the engine. Sending the on-device id to
+      // the cloud names a model the backend has never heard of, and the request
+      // is rejected as `invalid_model`.
+      final fallbackId = _fallbackRemoteModelId();
       _logger.w(
         'On-device unavailable; using cloud',
-        fields: {'requested': model.id},
+        fields: {'requested': model.id, 'using': fallbackId},
       );
       return RoutingDecision(
         engine: _remote,
-        modelId: model.id,
+        modelId: fallbackId,
         reason: RoutingReason.onDeviceUnavailable,
       );
     }

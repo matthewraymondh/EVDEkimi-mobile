@@ -155,7 +155,10 @@ class OnnxRouterModel {
           'The bundled package supports arm64-v8a and armeabi-v7a, so on-device '
           'inference needs an arm64 emulator image or a physical device.';
     }
-    return text;
+    // Anything else is shown to a user, so it must not be a raw exception
+    // string. The detail is already in the logs for whoever needs it.
+    return 'The on-device model could not be loaded on this device. '
+        'The app will use cloud models instead.';
   }
 
   /// How many times [_initialise] has actually run. Must never exceed 1.

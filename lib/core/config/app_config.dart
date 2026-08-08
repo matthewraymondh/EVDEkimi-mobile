@@ -116,6 +116,10 @@ class AppConfig {
   /// Whether in-app developer surfaces (log console, engine inspector) show.
   bool get showDiagnostics => !flavor.isProd;
 
+  /// Cloud model used when nothing else has been chosen, and when an on-device
+  /// request has to be redirected to the network.
+  static const String defaultRemoteModelId = 'gpt-4o-mini';
+
   @override
   String toString() =>
       'AppConfig(flavor: ${flavor.name}, apiBaseUrl: $apiBaseUrl, '
@@ -123,6 +127,7 @@ class AppConfig {
 }
 
 /// Route/endpoint constants, kept beside config so URL shape is reviewable.
+/// Endpoint and model constants.
 abstract final class ApiRoutes {
   static const String signIn = '/auth/login';
   static const String signUp = '/auth/register';

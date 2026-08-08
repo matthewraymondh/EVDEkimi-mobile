@@ -187,6 +187,15 @@ final engineRouterProvider = Provider<EngineRouter>(
     onDeviceEngine: ref.watch(onDeviceEngineProvider),
     connectivity: ref.watch(connectivityServiceProvider),
     logger: ref.watch(loggerProvider),
+    // `ref.read` inside a callback, not `ref.watch`: watching would rebuild the
+    // router (and with it the chat repository) whenever the user changes their
+    // default model, tearing down any generation in flight.
+    fallbackRemoteModelId: () {
+      final selected = ref.read(settingsControllerProvider).selectedModelId;
+      return selected == KnownModels.onDeviceRouter
+          ? AppConfig.defaultRemoteModelId
+          : selected;
+    },
   ),
 );
 
@@ -232,6 +241,7 @@ final chatRepositoryProvider = Provider<ChatRepositoryImpl>((ref) {
     apiClient: ref.watch(apiClientProvider),
     config: ref.watch(appConfigProvider),
     logger: ref.watch(loggerProvider),
+    readSettings: () => ref.read(settingsControllerProvider),
   );
   ref.onDispose(repository.dispose);
   return repository;

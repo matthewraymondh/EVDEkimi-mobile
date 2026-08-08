@@ -17,7 +17,9 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     required this.dockFill,
     required this.dockStroke,
     required this.dockHighlight,
-    required this.dockActive,
+    required this.dockActiveTop,
+    required this.dockActiveBottom,
+    required this.dockActiveBorder,
     required this.raisedSurface,
     required this.raisedBorder,
     required this.outgoingBubble,
@@ -65,7 +67,10 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // A brighter top edge in light mode means *less* of the darkening the rest
     // of the outline carries, which is what a lit edge actually looks like here.
     dockHighlight: Color(0x99FFFFFF),
-    dockActive: Color(0x14000000),
+    dockActiveTop: Color(0x14000000),
+    dockActiveBottom: Color(0x0A000000),
+    // Dark, not white. A white border on a near-white dock is the dock.
+    dockActiveBorder: Color(0x1A000000),
     raisedSurface: AppPalette.white,
     // Heavier than the glass stroke, and it has to be. A white card on a
     // #F8FAFC page is 1.05:1 — the tonal step is not a separation at all, so
@@ -109,7 +114,9 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     dockFill: Color(0x73121214),
     dockStroke: Color(0x26FFFFFF),
     dockHighlight: Color(0x40FFFFFF),
-    dockActive: Color(0x2EFFFFFF),
+    dockActiveTop: Color(0x33FFFFFF),
+    dockActiveBottom: Color(0x14FFFFFF),
+    dockActiveBorder: Color(0x40FFFFFF),
     raisedSurface: AppPalette.zinc900,
     raisedBorder: Color(0x14FFFFFF),
     outgoingBubble: AppPalette.accentDeep,
@@ -163,8 +170,18 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   final Color dockStroke;
   final Color dockHighlight;
 
-  /// Fill of the capsule that glides under the selected destination.
-  final Color dockActive;
+  /// The capsule that glides under the selected destination.
+  ///
+  /// Lighter at the top than the bottom, which is the same rule the dock's own
+  /// rim follows: a pane lit from above is brightest where it faces the light.
+  /// A flat tint reads as a painted rectangle; the falloff is what makes it read
+  /// as a second sheet of glass resting on the first.
+  ///
+  /// Its border is stronger than [dockStroke] on purpose — it sits *on* glass
+  /// rather than against the page, so it needs more to separate from.
+  final Color dockActiveTop;
+  final Color dockActiveBottom;
+  final Color dockActiveBorder;
 
   /// The 1px hairline around every glass panel.
   ///
@@ -231,7 +248,9 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     Color? dockFill,
     Color? dockStroke,
     Color? dockHighlight,
-    Color? dockActive,
+    Color? dockActiveTop,
+    Color? dockActiveBottom,
+    Color? dockActiveBorder,
     Color? raisedSurface,
     Color? raisedBorder,
     Color? outgoingBubble,
@@ -261,7 +280,9 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     dockFill: dockFill ?? this.dockFill,
     dockStroke: dockStroke ?? this.dockStroke,
     dockHighlight: dockHighlight ?? this.dockHighlight,
-    dockActive: dockActive ?? this.dockActive,
+    dockActiveTop: dockActiveTop ?? this.dockActiveTop,
+    dockActiveBottom: dockActiveBottom ?? this.dockActiveBottom,
+    dockActiveBorder: dockActiveBorder ?? this.dockActiveBorder,
     raisedSurface: raisedSurface ?? this.raisedSurface,
     raisedBorder: raisedBorder ?? this.raisedBorder,
     outgoingBubble: outgoingBubble ?? this.outgoingBubble,
@@ -297,7 +318,17 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
       dockFill: Color.lerp(dockFill, other.dockFill, t)!,
       dockStroke: Color.lerp(dockStroke, other.dockStroke, t)!,
       dockHighlight: Color.lerp(dockHighlight, other.dockHighlight, t)!,
-      dockActive: Color.lerp(dockActive, other.dockActive, t)!,
+      dockActiveTop: Color.lerp(dockActiveTop, other.dockActiveTop, t)!,
+      dockActiveBottom: Color.lerp(
+        dockActiveBottom,
+        other.dockActiveBottom,
+        t,
+      )!,
+      dockActiveBorder: Color.lerp(
+        dockActiveBorder,
+        other.dockActiveBorder,
+        t,
+      )!,
       raisedSurface: Color.lerp(raisedSurface, other.raisedSurface, t)!,
       raisedBorder: Color.lerp(raisedBorder, other.raisedBorder, t)!,
       outgoingBubble: Color.lerp(outgoingBubble, other.outgoingBubble, t)!,

@@ -14,7 +14,7 @@ take-home assessment.
 | **Persistence** | sqflite + hand-written migrations |
 | **Networking** | Dio + a hand-written server-sent-events parser |
 | **On-device AI** | ONNX Runtime Mobile, 130 KB model bundled in the app |
-| **Tests** | 189 passing · `flutter analyze` clean under a strict lint set |
+| **Tests** | 191 passing · `flutter analyze` clean under a strict lint set |
 
 ---
 
@@ -63,7 +63,7 @@ anything; use the password `wrongpassword` to see the invalid-credentials path.
 
 ```bash
 flutter analyze            # No issues found!
-flutter test               # All tests passed!  (189 tests)
+flutter test               # All tests passed!  (191 tests)
 flutter build apk --debug  # per-ABI APKs in build/app/outputs/flutter-apk/
 ```
 

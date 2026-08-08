@@ -21,12 +21,16 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const barWidth = 360.0;
 
-  Widget host(int index, {ValueChanged<int>? onSelect}) => ProviderScope(
+  Widget host(
+    int index, {
+    ValueChanged<int>? onSelect,
+    Brightness brightness = Brightness.dark,
+  }) => ProviderScope(
     overrides: [
       pendingMessageCountProvider.overrideWith((ref) => Stream.value(0)),
     ],
     child: MaterialApp(
-      theme: AppTheme.dark(),
+      theme: brightness == Brightness.dark ? AppTheme.dark() : AppTheme.light(),
       home: GlassScope(
         isEnabled: false,
         child: Scaffold(
@@ -104,6 +108,58 @@ void main() {
       reason: 'a capsule that jumps is already at the end on the first frame',
     );
     expect(midway, lessThan(end));
+  });
+
+  testWidgets('tints the icon in step with the capsule, not before it', (
+    tester,
+  ) async {
+    Color tintOf(String label) => tester
+        .widgetList<Icon>(
+          find.descendant(
+            of: find.bySemanticsLabel(label).first,
+            matching: find.byType(Icon),
+          ),
+        )
+        .first
+        .color!;
+
+    await tester.pumpWidget(host(0));
+    await tester.pumpAndSettle();
+    final muted = tintOf('Settings');
+
+    await tester.pumpWidget(host(1));
+    await tester.pump(const Duration(milliseconds: 150));
+    final midway = tintOf('Settings');
+
+    await tester.pumpAndSettle();
+    final full = tintOf('Settings');
+
+    // Opacity is what the tween moves, so alpha is what has to be in between.
+    // If the tint snapped instead, the glyph would reach full strength while
+    // the capsule was still a third of the bar away from it.
+    expect(muted.a, lessThan(full.a));
+    expect(midway.a, greaterThan(muted.a));
+    expect(midway.a, lessThan(full.a));
+  });
+
+  testWidgets('uses a dark foreground in light mode', (tester) async {
+    // The reference specifies #FFFFFF for the active icon, which is dark-mode
+    // reasoning: on a near-white dock a white glyph is not muted, it is gone.
+    // Both tints resolve through `onSurface` so the polarity follows the theme.
+    await tester.pumpWidget(host(0, brightness: Brightness.light));
+    await tester.pumpAndSettle();
+
+    final active = tester
+        .widgetList<Icon>(
+          find.descendant(
+            of: find.bySemanticsLabel('Chats').first,
+            matching: find.byType(Icon),
+          ),
+        )
+        .first;
+
+    expect(active.color!.computeLuminance(), lessThan(0.2));
+    expect(find.byKey(FloatingNavBar.activeCapsuleKey), findsOneWidget);
   });
 
   testWidgets('reports the selected destination to assistive tech', (

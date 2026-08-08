@@ -13,15 +13,27 @@ const double _barHeight = AppSizes.navBar;
 /// Side of the compose action and of each destination's tap target.
 const double _slotSize = 48;
 
-/// The gliding capsule behind the selected destination.
-const double _pillWidth = 56;
-const double _pillHeight = 40;
+/// Slots across the dock. Two destinations and the compose action between them.
+const int _slotCount = 3;
+
+/// The visible capsule behind the selected destination.
+///
+/// Taller than the icon it sits behind and narrower than the slot it lands in,
+/// so it reads as a lozenge holding the glyph rather than as a block filling a
+/// third of the bar.
+const double _pillWidth = 64;
+const double _pillHeight = 48;
 
 /// How long the capsule takes to travel between destinations.
 ///
 /// Long enough to be followed by the eye — the movement is the thing that says
-/// "you moved from here to there", and at 150ms it just teleports.
-const Duration _pillGlide = Duration(milliseconds: 300);
+/// "you moved from here to there", and at 150ms it just teleports. The icon
+/// tints over the same duration and curve, so the capsule arriving and the glyph
+/// brightening are one event rather than two that happen to overlap.
+const Duration _pillGlide = Duration(milliseconds: 350);
+
+/// Shared by the capsule's travel and the icon's tint.
+const Curve _pillCurve = Curves.easeOutCubic;
 
 /// A floating glass dock.
 ///
@@ -51,7 +63,17 @@ class FloatingNavBar extends ConsumerWidget {
   final VoidCallback onNewChat;
 
   /// Slot each destination occupies, skipping the compose action in the middle.
+  ///
+  /// This indirection is the whole reason the capsule lands correctly. The
+  /// obvious formula — `Alignment(-1 + index * 2 / (count - 1), 0)` — assumes
+  /// every slot is a destination, and with three slots it sends destination 1
+  /// to alignment 0.0: the exact centre of the bar, which is the compose button.
+  /// Mapping through the slot first is the difference between a capsule that
+  /// lands on Settings and one that parks on an action.
   static const List<int> _slotForDestination = [0, 2];
+
+  /// Normalised horizontal alignment of a slot, from -1 (first) to 1 (last).
+  static double _alignmentFor(int slot) => -1 + slot * (2 / (_slotCount - 1));
 
   /// Identifies the gliding capsule so its position can be asserted.
   ///
@@ -104,7 +126,7 @@ class FloatingNavBar extends ConsumerWidget {
             ],
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final slotWidth = constraints.maxWidth / 3;
+                final slotWidth = constraints.maxWidth / _slotCount;
                 final slot =
                     _slotForDestination[currentIndex.clamp(
                       0,
@@ -113,14 +135,26 @@ class FloatingNavBar extends ConsumerWidget {
 
                 return Stack(
                   children: [
-                    AnimatedPositioned(
+                    AnimatedAlign(
                       duration: _pillGlide,
-                      curve: Curves.easeOutCubic,
-                      left: slotWidth * slot + (slotWidth - _pillWidth) / 2,
-                      top: (_barHeight - _pillHeight) / 2,
-                      width: _pillWidth,
-                      height: _pillHeight,
-                      child: const _ActivePill(key: activeCapsuleKey),
+                      curve: _pillCurve,
+                      alignment: Alignment(_alignmentFor(slot), 0),
+                      // Exactly one slot wide, and that is not a style choice —
+                      // it is what makes the alignment arithmetic land on slot
+                      // centres. `Align` places a child of width `w` in a box of
+                      // width `W` at `(a + 1) / 2 * (W - w)`, so `a = -1` and
+                      // `a = 1` only coincide with the first and last slot
+                      // centres when `w` is exactly `W / slots`. The visible
+                      // capsule is narrower and centred inside this box, which
+                      // keeps the geometry exact and the capsule the size it
+                      // wants to be.
+                      child: SizedBox(
+                        width: slotWidth,
+                        height: _pillHeight,
+                        child: const Center(
+                          child: _ActivePill(key: activeCapsuleKey),
+                        ),
+                      ),
                     ),
                     Row(
                       children: [
@@ -165,34 +199,38 @@ class FloatingNavBar extends ConsumerWidget {
   }
 }
 
-/// The inner capsule that marks the selected destination.
+/// The capsule that marks the selected destination.
 ///
-/// A gradient rather than a flat tint, and top-lighter than bottom, so it reads
-/// as a second pane resting on the first rather than as a painted rectangle.
+/// A gradient rather than a flat tint, lighter at the top, which is the same
+/// rule the dock's own rim follows: a pane lit from above is brightest where it
+/// faces the light. Flat fill reads as a painted rectangle; the falloff is what
+/// makes it read as a second sheet of glass resting on the first.
 class _ActivePill extends StatelessWidget {
   const _ActivePill({super.key});
 
   @override
   Widget build(BuildContext context) {
     final chat = context.chatTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base = chat.dockActive;
 
     return IgnorePointer(
-      child: DecoratedBox(
+      child: Container(
+        width: _pillWidth,
+        height: _pillHeight,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: isDark
-                ? [
-                    base.withValues(alpha: base.a * 1.25),
-                    base.withValues(alpha: base.a * 0.45),
-                  ]
-                : [base, base.withValues(alpha: base.a * 0.6)],
+            colors: [chat.dockActiveTop, chat.dockActiveBottom],
           ),
           borderRadius: BorderRadius.circular(_pillHeight / 2),
-          border: Border.all(color: chat.dockStroke),
+          border: Border.all(color: chat.dockActiveBorder),
+          // Negative spread so the shadow stays under the capsule instead of
+          // haloing out past it. It is sitting on glass, not on a page — a
+          // shadow that escapes the shape darkens the dock around it and the
+          // capsule stops looking like it is resting on anything.
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 12, spreadRadius: -2),
+          ],
         ),
       ),
     );
@@ -225,8 +263,10 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // One muted value for both themes. It resolves through onSurface, so it is
+    // white on the dark dock and near-black on the light one without the widget
+    // having to know which it is standing on.
     final foreground = context.colors.onSurface;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
       button: true,
@@ -247,26 +287,26 @@ class _NavItem extends StatelessWidget {
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
-              AnimatedSwitcher(
-                duration: AppDuration.fast,
-                child: Icon(
-                  isActive ? activeIcon : icon,
-                  key: ValueKey(isActive),
-                  size: AppSizes.iconMd,
-                  color: isActive
+              // Two animations, deliberately at different speeds. The tint runs
+              // the full glide so it lands with the capsule; the glyph swap is
+              // quick, because an outline cross-fading into a fill over a third
+              // of a second reads as a smear rather than a change of state.
+              TweenAnimationBuilder<Color?>(
+                tween: ColorTween(
+                  end: isActive
                       ? foreground
-                      : foreground.withValues(alpha: isDark ? 0.5 : 0.4),
-                  // A short, tight glow under the selected glyph only. It is
-                  // what stops the icon looking pasted onto the capsule: a lit
-                  // object spills a little light onto what it rests on.
-                  shadows: isActive
-                      ? [
-                          Shadow(
-                            color: foreground.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                          ),
-                        ]
-                      : null,
+                      : foreground.withValues(alpha: 0.45),
+                ),
+                duration: _pillGlide,
+                curve: _pillCurve,
+                builder: (context, tint, _) => AnimatedSwitcher(
+                  duration: AppDuration.instant,
+                  child: Icon(
+                    isActive ? activeIcon : icon,
+                    key: ValueKey(isActive),
+                    size: AppSizes.iconMd,
+                    color: tint,
+                  ),
                 ),
               ),
               if (badgeCount > 0)

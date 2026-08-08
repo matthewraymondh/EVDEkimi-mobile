@@ -228,6 +228,81 @@ void main() {
     });
   });
 
+  group('a flush while a reply is streaming', () {
+    test('leaves the in-flight generation alone', () async {
+      // The bug this exists for: an outbox entry stays due for the whole time
+      // its reply is streaming, because it is only removed once the answer
+      // lands. A flush firing in that window used to call `_runGeneration`
+      // again, which opens by cancelling whatever is in flight — so a reply the
+      // user was watching finish got blanked and typed out a second time.
+      await repository.sendMessage(
+        conversationId: conversationId,
+        content: 'hello',
+      );
+      await engine.emitted.future;
+      engine.emit(const InferenceDelta('Half an answer'));
+      await pumpEventQueue(times: 10);
+
+      final generationsBefore = engine.generateCalls;
+      await repository.flushOutbox();
+      await pumpEventQueue(times: 10);
+
+      expect(
+        engine.generateCalls,
+        equals(generationsBefore),
+        reason: 'the entry is due, but it is already being delivered',
+      );
+
+      // And the original stream is still live, so the answer finishes normally.
+      engine
+        ..emit(const InferenceDelta(' arrives'))
+        ..complete();
+      await pumpEventQueue(times: 40);
+
+      final assistant = await assistantMessage();
+      expect(assistant.content, equals('Half an answer arrives'));
+      expect(assistant.status, equals(MessageStatus.complete));
+      expect(
+        assistant.status,
+        isNot(equals(MessageStatus.cancelled)),
+        reason: 'a flush must never cancel a healthy generation',
+      );
+      expect(await outboxDao.count(), isZero);
+    });
+
+    test('still delivers once the generation has finished', () async {
+      // The guard must not turn into a permanent skip: once the conversation is
+      // idle again a genuinely stuck entry has to flush as normal.
+      await repository.sendMessage(
+        conversationId: conversationId,
+        content: 'hello',
+      );
+      await engine.emitted.future;
+      engine.fail(Exception('network died'));
+      await pumpEventQueue(times: 40);
+
+      expect(await outboxDao.count(), equals(1));
+
+      engine.reset();
+      await outboxDao.markDueNow(
+        (await outboxDao.findDue(limit: 10)).first.messageId,
+      );
+      final generationsBefore = engine.generateCalls;
+
+      unawaited(repository.flushOutbox());
+      await engine.emitted.future;
+      expect(engine.generateCalls, equals(generationsBefore + 1));
+
+      engine
+        ..emit(const InferenceDelta('Recovered'))
+        ..complete();
+      await pumpEventQueue(times: 40);
+
+      expect((await assistantMessage()).content, equals('Recovered'));
+      expect(await outboxDao.count(), isZero);
+    });
+  });
+
   group('a successful generation', () {
     test('completes the message and clears the outbox', () async {
       await repository.sendMessage(
@@ -336,6 +411,10 @@ class _ScriptedEngine implements InferenceEngine {
   /// engine that waits forever would hang the flush rather than test it.
   Object? autoFailWith;
 
+  /// How many times `generate` has been subscribed to. The whole point of the
+  /// flush guard is that this does not go up while one is already running.
+  int generateCalls = 0;
+
   @override
   EngineKind get kind => EngineKind.remote;
 
@@ -356,6 +435,7 @@ class _ScriptedEngine implements InferenceEngine {
     final controller = StreamController<InferenceEvent>();
     _controller = controller;
     controller.onListen = () {
+      generateCalls++;
       controller.add(InferenceStarted(modelId: request.modelId, engine: kind));
       if (!emitted.isCompleted) emitted.complete();
       final failure = autoFailWith;

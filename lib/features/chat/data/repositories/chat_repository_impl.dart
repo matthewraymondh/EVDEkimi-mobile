@@ -721,6 +721,26 @@ class ChatRepositoryImpl implements ChatRepository {
             continue;
           }
 
+          // An entry stays in the outbox for the whole time its reply is
+          // streaming — it is only removed once the answer lands. So a flush
+          // that happens to fire during a generation finds the row still due,
+          // and `_runGeneration` opens by cancelling whatever is in flight:
+          // the answer the user is watching gets marked cancelled, blanked, and
+          // typed out again from the start.
+          //
+          // The flush is not the trigger to fix. Any of them — reconnect, the
+          // periodic sweep, app resume, the Settings button — lands in that
+          // window sooner or later, and the row genuinely is still due. What
+          // was missing is that "due" and "not already being delivered" are
+          // different questions.
+          if (_active.containsKey(entry.conversationId)) {
+            _logger.d(
+              'Skipping outbox entry; already generating',
+              fields: {'conversation': entry.conversationId},
+            );
+            continue;
+          }
+
           final model = await _resolveModel(entry.modelId);
           final decision = await _engineRouter.resolve(model: model);
           if (!decision.canGenerateNow) break;

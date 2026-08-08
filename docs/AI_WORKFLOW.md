@@ -510,7 +510,7 @@ Balance matters here — the review found real bugs, but the leverage was enormo
 
 ```bash
 flutter analyze            # No issues found!
-flutter test               # All tests passed! (217 tests)
+flutter test               # All tests passed! (218 tests)
 flutter build apk --debug  # per-ABI APKs; needs platform android-37.0
 python tools/train_router_model.py   # retrains; then flutter test re-checks parity
 ```

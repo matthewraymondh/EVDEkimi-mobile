@@ -39,6 +39,11 @@ void main() {
   late OutboxDao outboxDao;
   late ConversationDao conversationDao;
   late _ScriptedEngine engine;
+
+  /// The on-device slot. Separate from [engine] so a test can make the remote
+  /// engine unreachable and observe a genuine offline fallback — with one
+  /// instance in both slots the router can never produce one.
+  late _ScriptedEngine localEngine;
   late ChatRepositoryImpl repository;
 
   const conversationId = 'conv-1';
@@ -53,6 +58,7 @@ void main() {
     outboxDao = OutboxDao(database);
     conversationDao = ConversationDao(database);
     engine = _ScriptedEngine();
+    localEngine = _ScriptedEngine();
 
     final config = AppConfig.test();
     final logger = AppLogger.silent();
@@ -82,7 +88,7 @@ void main() {
       outboxDao: outboxDao,
       engineRouter: EngineRouter(
         remoteEngine: engine,
-        onDeviceEngine: engine,
+        onDeviceEngine: localEngine,
         connectivity: connectivity,
         logger: logger,
         fallbackRemoteModelId: () => 'gpt-4o-mini',
@@ -229,12 +235,42 @@ void main() {
   });
 
   group('a deferred reply', () {
-    test('stays in the outbox instead of counting as delivered', () async {
-      // What the user hits offline with the on-device fallback on: the local
-      // model answers a price question by refusing, honestly, and pointing at
-      // the cloud. That is text, not an answer. Treating it as delivered
-      // removed the row, so the question was never asked once the network came
-      // back — while the offline banner had already said it would send itself.
+    test(
+      'stays queued when it only landed here because we were offline',
+      () async {
+        // The demo case: the conversation is on a cloud model, the network is
+        // down, and the local engine takes it as a fallback and refuses. A cloud
+        // engine will answer properly on reconnect, so the row has to survive —
+        // otherwise the offline banner promises a send that never happens.
+        engine.available = false;
+
+        await repository.sendMessage(
+          conversationId: conversationId,
+          content: 'how much is a villa in canggu',
+        );
+        await localEngine.emitted.future;
+        localEngine
+          ..emit(const InferenceDelta('I cannot answer that on this device.'))
+          ..completeWith(FinishReason.deferred);
+        await pumpEventQueue(times: 40);
+
+        final assistant = await assistantMessage();
+        expect(assistant.content, contains('cannot answer'));
+        expect(assistant.status, equals(MessageStatus.queued));
+        expect(
+          await outboxDao.count(),
+          equals(1),
+          reason: 'a cloud engine still owes this answer',
+        );
+      },
+    );
+
+    test('completes when the user chose this model themselves', () async {
+      // The regression that made the first version of this fix worse than the
+      // bug. If the conversation is pinned to the local model, reconnecting
+      // routes straight back to it, so a queued row is re-run by every flush —
+      // the same refusal streaming in over and over, badge never clearing.
+      // For that conversation the refusal *is* the answer.
       await repository.sendMessage(
         conversationId: conversationId,
         content: 'how much is a villa in canggu',
@@ -245,22 +281,15 @@ void main() {
         ..completeWith(FinishReason.deferred);
       await pumpEventQueue(times: 40);
 
-      final assistant = await assistantMessage();
-      expect(assistant.content, contains('cannot answer'));
-      expect(
-        assistant.status,
-        equals(MessageStatus.queued),
-        reason: 'the explanation is shown, but the reply is still owed',
-      );
+      expect((await assistantMessage()).status, equals(MessageStatus.complete));
       expect(
         await outboxDao.count(),
-        equals(1),
-        reason: 'a refusal must not dequeue the question',
+        isZero,
+        reason: 'nothing will ever answer this differently, so it is not owed',
       );
     });
 
-    test('a real answer still clears it', () async {
-      // The guard must not turn every completion into a permanent queue entry.
+    test('a real answer still clears the outbox', () async {
       await repository.sendMessage(
         conversationId: conversationId,
         content: 'hello',
@@ -446,7 +475,8 @@ void main() {
 class _ScriptedEngine implements InferenceEngine {
   _ScriptedEngine({this.available = true});
 
-  final bool available;
+  /// Mutable so a test can take the remote engine offline mid-setup.
+  bool available;
 
   StreamController<InferenceEvent>? _controller;
 

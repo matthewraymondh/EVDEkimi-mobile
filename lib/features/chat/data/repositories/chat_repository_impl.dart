@@ -492,7 +492,7 @@ class ChatRepositoryImpl implements ChatRepository {
     final generation = _ActiveGeneration(
       assistantMessageId: assistantMessageId,
       startedAt: DateTime.now(),
-    );
+    )..routingReason = decision.reason;
     _active[conversationId] = generation;
 
     final history = await _buildPromptHistory(
@@ -622,13 +622,21 @@ class ChatRepositoryImpl implements ChatRepository {
 
     final content = generation.buffer.toString();
 
-    // A deferral is text, not an answer. The on-device engine reports it when
-    // the question needs live inventory, a price or a calendar — things it
-    // refuses to guess at. Counting that as a delivered reply is what dropped
-    // the message: the outbox row went, so the question was never asked once
-    // the network returned, while the offline banner had already promised it
-    // would send itself.
-    final isDeferred = generation.finishReason == FinishReason.deferred;
+    // A deferral is text, not an answer: the on-device engine reports it for
+    // questions needing live inventory, a price or a calendar. Whether that
+    // leaves the message *owed* depends on why this engine ran at all.
+    //
+    // Fell back here because the network was down — a cloud engine will take it
+    // on reconnect, so the row stays and the refusal's promise is kept.
+    //
+    // Chosen deliberately — the user picked the local model — and no amount of
+    // reconnecting changes the routing. Keeping the row would queue a message
+    // that every retry answers the same way: the flush fires, the same refusal
+    // streams in again, and the badge never clears. That is a loop, not
+    // durability, so the refusal is the final answer for this model.
+    final isDeferred =
+        generation.finishReason == FinishReason.deferred &&
+        generation.routingReason == RoutingReason.offlineFallback;
 
     await _messageDao.writeStreamedContent(
       conversationId: conversationId,
@@ -1020,6 +1028,10 @@ class _ActiveGeneration {
   /// How the engine says the run ended. `deferred` means it produced text but
   /// not an answer, which is the difference between delivered and still owed.
   FinishReason finishReason = FinishReason.stop;
+
+  /// Why this engine was chosen. A deferral is only recoverable if a *different*
+  /// engine might take the message later, which is exactly what this says.
+  RoutingReason routingReason = RoutingReason.explicitChoice;
   int persistedLength = 0;
 
   /// True once a terminal write has happened. The throttled persist checks this

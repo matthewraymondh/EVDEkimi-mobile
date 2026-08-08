@@ -354,14 +354,19 @@ class OnDeviceEngine implements InferenceEngine {
         '(${(prediction.confidence * 100).toStringAsFixed(0)}% confidence) in a '
         'few milliseconds, but it is a small classifier and embedder — not a '
         'local LLM, and not connected to our listings.\n\n'
-        // This promise is kept by `FinishReason.deferred`: the run reports that
-        // it produced text rather than an answer, so the repository leaves the
-        // outbox row in place and a capable engine delivers it later. Without
-        // that signal, answering counted as delivering and the sentence was
-        // false the moment it was written.
-        '**To get a real answer:** stay offline and it will send itself once '
-        'you reconnect — it is still queued. Or switch to a cloud model in the '
-        'model picker now.';
+        // Careful about what this promises. The run reports
+        // `FinishReason.deferred`, and the repository decides what that means:
+        // a message that landed here because the network was down stays queued
+        // and sends itself later, but one on a conversation the user pinned to
+        // this model does not — reconnecting would route straight back here.
+        //
+        // The engine cannot tell those apart, so the wording covers both
+        // without asserting either. An earlier version promised auto-send
+        // unconditionally, which was false for half the cases and produced a
+        // reply that never stopped re-arriving.
+        '**To get a real answer** this needs a cloud model. Pick one in the '
+        'model picker — or, if this conversation is already using one, just '
+        'reconnect and the question sends itself.';
   }
 
   /// Splits text into word-sized chunks that concatenate back to the original.

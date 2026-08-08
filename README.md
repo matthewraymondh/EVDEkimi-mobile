@@ -206,6 +206,7 @@ Two of these earn their place more than the rest:
 
 | Document | What is in it |
 |---|---|
+| [`docs/DIAGRAM.md`](docs/DIAGRAM.md) | **Start here.** The whole system in diagrams: the dependency rule, the three ports, the send path, streaming, engine routing, on-device AI |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layer rules, every significant decision and its trade-off, what I would change next |
 | [`docs/ON_DEVICE_AI.md`](docs/ON_DEVICE_AI.md) | What the shipped model really is, and the concrete path to a 1–3 B parameter LLM |
 | [`docs/AI_WORKFLOW.md`](docs/AI_WORKFLOW.md) | How this was built with an AI coding agent: prompts, generated code, and the bugs I caught in review |

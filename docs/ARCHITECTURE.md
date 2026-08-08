@@ -1,6 +1,7 @@
 # Architecture
 
-The decisions, and what each one cost.
+The decisions, and what each one cost. For the shape rather than the reasoning,
+[DIAGRAM.md](DIAGRAM.md) has the same system in six diagrams.
 
 ---
 

@@ -405,12 +405,32 @@ class OutboxCoordinator {
   StreamSubscription<NetworkStatus>? _subscription;
   Timer? _timer;
 
+  /// How long to let a rediscovered network settle before using it.
+  ///
+  /// The platform reports the interface as up well before it routes. Coming out
+  /// of airplane mode, Wi-Fi still has to associate and take a lease, and a
+  /// request sent into that window does not fail fast — it hangs until a
+  /// timeout, burns the entry's first attempt, and pushes the real delivery
+  /// behind a backoff. Waiting two seconds costs nothing and skips all of it.
+  static const Duration _settleDelay = Duration(seconds: 2);
+
+  Timer? _settleTimer;
+
   void start() {
     _subscription = _connectivity.onStatusChanged.listen((status) {
-      if (status.isOnline) {
-        _logger.i('Back online; flushing outbox');
-        unawaited(_repository.flushOutbox());
+      if (!status.isOnline) {
+        _settleTimer?.cancel();
+        return;
       }
+      _logger.i('Back online; flushing outbox shortly');
+      // Restarted rather than stacked: a flapping connection emits several
+      // online events, and one flush after things go quiet is what is wanted.
+      _settleTimer?.cancel();
+      _settleTimer = Timer(_settleDelay, () {
+        if (_connectivity.status.isOnline) {
+          unawaited(_repository.flushOutbox());
+        }
+      });
     });
 
     // A periodic sweep covers the captive-portal case, where the interface
@@ -424,6 +444,7 @@ class OutboxCoordinator {
 
   Future<void> dispose() async {
     _timer?.cancel();
+    _settleTimer?.cancel();
     await _subscription?.cancel();
   }
 }

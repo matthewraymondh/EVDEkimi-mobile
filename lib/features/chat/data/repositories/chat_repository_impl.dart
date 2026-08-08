@@ -481,6 +481,7 @@ class ChatRepositoryImpl implements ChatRepository {
     required String userMessageId,
     required String assistantMessageId,
     required RoutingDecision decision,
+    bool isBackgroundRetry = false,
   }) async {
     final engine = decision.engine;
     if (engine == null) return;
@@ -489,10 +490,13 @@ class ChatRepositoryImpl implements ChatRepository {
     // the same conversation would interleave tokens.
     await stopGeneration(conversationId);
 
-    final generation = _ActiveGeneration(
-      assistantMessageId: assistantMessageId,
-      startedAt: DateTime.now(),
-    )..routingReason = decision.reason;
+    final generation =
+        _ActiveGeneration(
+            assistantMessageId: assistantMessageId,
+            startedAt: DateTime.now(),
+          )
+          ..routingReason = decision.reason
+          ..isBackgroundRetry = isBackgroundRetry;
     _active[conversationId] = generation;
 
     final history = await _buildPromptHistory(
@@ -690,14 +694,34 @@ class ChatRepositoryImpl implements ChatRepository {
     );
 
     final partial = generation.buffer.toString();
-    await _messageDao.update(conversationId, assistantMessageId, {
-      // Partial output is kept: it is usually still useful, and deleting text
-      // the user already read is worse than leaving it with an error marker.
-      MessageColumns.content: partial,
-      MessageColumns.status: MessageStatus.failed.name,
-      MessageColumns.errorMessage: failure.userMessage,
-      MessageColumns.errorCode: failure.code ?? failure.runtimeType.toString(),
-    });
+
+    if (generation.isBackgroundRetry) {
+      // The outbox started this and the outbox will start it again. Showing the
+      // error here is wrong twice over: it contradicts the "Queued" badge the
+      // user is looking at, and because a retry usually fails before its first
+      // token, `partial` is empty — so writing it replaced perfectly good text
+      // with a blank message and a timeout.
+      //
+      // That is what a reconnect used to look like: the honest offline refusal
+      // vanished, "the server took too long to respond" appeared in its place,
+      // and only the *next* attempt produced the real answer. `flushOutbox`
+      // already marks the message failed once the entry is genuinely abandoned,
+      // which is the point at which there is something to tell the user.
+      await _messageDao.update(conversationId, assistantMessageId, {
+        MessageColumns.status: MessageStatus.queued.name,
+        if (partial.isNotEmpty) MessageColumns.content: partial,
+      });
+    } else {
+      await _messageDao.update(conversationId, assistantMessageId, {
+        // Partial output is kept: it is usually still useful, and deleting text
+        // the user already read is worse than leaving it with an error marker.
+        MessageColumns.content: partial,
+        MessageColumns.status: MessageStatus.failed.name,
+        MessageColumns.errorMessage: failure.userMessage,
+        MessageColumns.errorCode:
+            failure.code ?? failure.runtimeType.toString(),
+      });
+    }
 
     generation.dispose();
     _liveTicks.add(conversationId);
@@ -777,6 +801,7 @@ class ChatRepositoryImpl implements ChatRepository {
               userMessageId: entry.messageId,
               assistantMessageId: assistantMessageId,
               decision: decision,
+              isBackgroundRetry: true,
             );
             delivered++;
           } catch (error) {
@@ -1032,6 +1057,13 @@ class _ActiveGeneration {
   /// Why this engine was chosen. A deferral is only recoverable if a *different*
   /// engine might take the message later, which is exactly what this says.
   RoutingReason routingReason = RoutingReason.explicitChoice;
+
+  /// True when the outbox started this run rather than the user.
+  ///
+  /// It decides how a failure is shown. Nobody is watching a background retry,
+  /// and the outbox will try again — so a transient error must not tear down
+  /// the message the user is already looking at.
+  bool isBackgroundRetry = false;
   int persistedLength = 0;
 
   /// True once a terminal write has happened. The throttled persist checks this

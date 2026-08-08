@@ -305,6 +305,66 @@ void main() {
     });
   });
 
+  group('a failing background retry', () {
+    test('stays queued instead of showing the user a timeout', () async {
+      // What a reconnect used to look like. The outbox retries, the request
+      // fails before its first token, and the old code wrote status=failed with
+      // the error text — replacing the refusal the user was reading with a
+      // blank message and "the server took too long to respond", seconds before
+      // the next attempt produced the real answer.
+      // Offline: the cloud engine is unreachable, so the local one takes it
+      // as a fallback and refuses. That leaves the row queued.
+      engine.available = false;
+      await repository.sendMessage(
+        conversationId: conversationId,
+        content: 'book me a viewing',
+      );
+      await localEngine.emitted.future;
+      localEngine
+        ..emit(const InferenceDelta('Queued while offline.'))
+        ..completeWith(FinishReason.deferred);
+      await pumpEventQueue(times: 40);
+      expect(await outboxDao.count(), equals(1));
+
+      // Reconnect. The interface is up, so the flush runs — but the request
+      // still dies, which is exactly the window this guards.
+      engine.available = true;
+      unawaited(repository.flushOutbox());
+      await engine.emitted.future;
+      engine.fail(Exception('receive timeout'));
+      await pumpEventQueue(times: 40);
+
+      final assistant = await assistantMessage();
+      expect(
+        assistant.status,
+        equals(MessageStatus.queued),
+        reason: 'the badge must not contradict itself while a retry is pending',
+      );
+      expect(assistant.errorMessage, isNull);
+      expect(
+        assistant.content,
+        equals('Queued while offline.'),
+        reason: 'a retry that produced no tokens must not blank what is there',
+      );
+      expect(await outboxDao.count(), equals(1));
+    });
+
+    test('a foreground send still reports its failure', () async {
+      // The user is watching this one, so silence would be worse than an error.
+      await repository.sendMessage(
+        conversationId: conversationId,
+        content: 'hello',
+      );
+      await engine.emitted.future;
+      engine.fail(Exception('nope'));
+      await pumpEventQueue(times: 40);
+
+      final assistant = await assistantMessage();
+      expect(assistant.status, equals(MessageStatus.failed));
+      expect(assistant.errorMessage, isNotNull);
+    });
+  });
+
   group('a flush while a reply is streaming', () {
     test('leaves the in-flight generation alone', () async {
       // The bug this exists for: an outbox entry stays due for the whole time

@@ -139,10 +139,16 @@ class AppBackdrop extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: const Alignment(-0.8, -0.9),
-                radius: 1.4,
+                // Deliberately *not* at the very top. Centred at -0.9 the bloom
+                // peaked directly behind the app bar, so the one strip already
+                // carrying a glass tint and a saturation boost was also the
+                // brightest thing on screen — which is most of why the top edge
+                // read as a separate, badly-matched panel. Dropped to -0.35 so
+                // the bar sits on the falloff rather than the hotspot.
+                center: const Alignment(-0.75, -0.35),
+                radius: 1.3,
                 colors: [
-                  primary.withValues(alpha: isDark ? 0.30 : 0.22),
+                  primary.withValues(alpha: isDark ? 0.26 : 0.20),
                   Colors.transparent,
                 ],
               ),
@@ -211,9 +217,46 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
       // Material's scroll-under tint would fight the glass, which already
       // conveys "content is passing beneath me" far better than a colour shift.
       scrolledUnderElevation: 0,
-      flexibleSpace: isGlass
-          ? const GlassSurface(cornerRadius: 0, child: SizedBox.expand())
-          : null,
+      flexibleSpace: isGlass ? const _GlassBarPane() : null,
+    );
+  }
+}
+
+/// The glass pane behind an app bar, oversized so only its bottom edge shows.
+///
+/// A glass surface is lit as a physical object: the shader draws a specular rim
+/// around the *whole* shape. On a floating pill that rim is the best part of the
+/// effect — it is what reads as a polished edge. On a bar that spans the screen
+/// it is wrong, because it outlines the top and sides too and the result looks
+/// like a pasted-on rectangle rather than a pane the content passes beneath.
+///
+/// So the pane is drawn larger than the bar and clipped to it: the left, right
+/// and top rims fall outside the visible area, and only the bottom edge — the
+/// one that genuinely divides chrome from content — survives.
+class _GlassBarPane extends StatelessWidget {
+  const _GlassBarPane();
+
+  /// Enough to push the rim and its glow past the clip on every edge.
+  static const double _bleed = 48;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final topInset = MediaQuery.paddingOf(context).top;
+
+    return ClipRect(
+      child: OverflowBox(
+        // Anchored to the bottom so the bar's lower edge is the one that lines
+        // up; everything else overflows and is clipped away.
+        alignment: Alignment.bottomCenter,
+        maxWidth: double.infinity,
+        maxHeight: double.infinity,
+        child: SizedBox(
+          width: size.width + _bleed * 2,
+          height: kToolbarHeight + topInset + _bleed,
+          child: const GlassSurface(cornerRadius: 0, child: SizedBox.expand()),
+        ),
+      ),
     );
   }
 }

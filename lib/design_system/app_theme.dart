@@ -7,17 +7,15 @@ import 'package:flutter/services.dart';
 
 /// Builds the light and dark themes.
 ///
-/// Seeded from the brand navy so every tonal role Material generates stays
-/// harmonically related, then the roles that carry the design are overridden by
-/// hand. The overrides are the point: a chat app is mostly surface, and
-/// `ColorScheme.fromSeed` spreads a generated tonal palette across those
-/// surfaces that does not match the four values the brand is actually built
-/// from. Everything not listed is left to Material, so component themes added
-/// later still inherit sensible defaults.
+/// Seeded from the accent so Material's generated roles stay related, then every
+/// surface and text role is overridden by hand. The overrides are not a tweak —
+/// they are the theme. `ColorScheme.fromSeed` spreads a *tinted* tonal palette
+/// across surfaces, and a tinted surface is precisely what glass cannot sit on:
+/// the refraction has to be the most colourful thing in the panel, so the plane
+/// behind it has to be neutral.
 ///
-/// The surface roles below are ordered by elevation in both schemes, which is
-/// the part worth checking against `AppPalette`: in dark mode they climb from
-/// `#0F044C` to `#141E61`, and in light they climb from `#EEEEEE` to white.
+/// Read the surface roles below as an elevation ladder. Dark climbs
+/// `#09090B → #18181B → #27272A`; light climbs `#F8FAFC → #FFFFFF`.
 abstract final class AppTheme {
   static ThemeData light() => _build(_lightScheme, ChatTheme.light);
 
@@ -25,49 +23,49 @@ abstract final class AppTheme {
 
   static final ColorScheme _lightScheme =
       ColorScheme.fromSeed(
-        seedColor: AppPalette.brandNavy,
+        seedColor: AppPalette.accentDeep,
         // ignore: avoid_redundant_argument_values
         brightness: Brightness.light,
       ).copyWith(
-        // Canvas behind, white on top: cards and bubbles are raised by tone
-        // rather than by borders or shadows.
-        surface: AppPalette.canvas,
+        surface: AppPalette.slate50,
         surfaceContainerLowest: AppPalette.white,
         surfaceContainerLow: AppPalette.white,
-        surfaceContainer: AppPalette.ink100,
-        surfaceContainerHigh: AppPalette.ink200,
-        onSurface: AppPalette.ink900,
-        // ink400 is the palette's own slate, but it lands at 3.7:1 on the
-        // canvas — under the floor for body copy, and this role sets every
-        // secondary line in the app. One step darker clears it.
-        onSurfaceVariant: AppPalette.ink500,
-        outline: AppPalette.ink400,
-        outlineVariant: AppPalette.ink200,
-        primary: AppPalette.brandNavy,
+        surfaceContainer: AppPalette.zinc100,
+        surfaceContainerHigh: AppPalette.zinc200,
+        surfaceContainerHighest: AppPalette.zinc300,
+        onSurface: AppPalette.zinc900,
+        // zinc400 is the muted tone in dark mode; on this page it is 2.5:1.
+        onSurfaceVariant: AppPalette.zinc500,
+        outline: AppPalette.zinc400,
+        outlineVariant: AppPalette.zinc200,
+        primary: AppPalette.accentDeep,
         onPrimary: AppPalette.white,
+        primaryContainer: AppPalette.accentMuted,
         error: AppPalette.dangerLight,
       );
 
   static final ColorScheme _darkScheme =
       ColorScheme.fromSeed(
-        seedColor: AppPalette.brandNavy,
+        seedColor: AppPalette.accent,
         brightness: Brightness.dark,
       ).copyWith(
-        // The brand's own two navies, used as the elevation system: the page is
-        // the deeper one and everything raised is the lighter one. No overlays,
-        // no shadows, no borders needed to separate them.
-        surface: AppPalette.ink900,
-        surfaceContainerLowest: AppPalette.ink950,
-        surfaceContainerLow: AppPalette.ink800,
-        surfaceContainer: AppPalette.ink800,
-        surfaceContainerHigh: AppPalette.ink700,
-        surfaceContainerHighest: AppPalette.ink600,
-        onSurface: AppPalette.ink50,
-        onSurfaceVariant: AppPalette.ink300,
-        outline: AppPalette.ink500,
-        outlineVariant: AppPalette.ink700,
-        primary: AppPalette.brandNavyLifted,
-        onPrimary: AppPalette.brandNavyDeep,
+        surface: AppPalette.zinc950,
+        // Pure black, so a well can still sit *below* the page.
+        surfaceContainerLowest: const Color(0xFF000000),
+        surfaceContainerLow: AppPalette.zinc900,
+        surfaceContainer: AppPalette.zinc900,
+        surfaceContainerHigh: AppPalette.zinc800,
+        surfaceContainerHighest: AppPalette.zinc700,
+        onSurface: AppPalette.zinc100,
+        onSurfaceVariant: AppPalette.zinc400,
+        outline: AppPalette.zinc600,
+        outlineVariant: AppPalette.zinc800,
+        // A bright tone with a dark foreground, which is the Material 3 dark
+        // pattern and the only way round that works: white on #3B82F6 is 3.7:1
+        // and fails for button labels.
+        primary: AppPalette.accent,
+        onPrimary: AppPalette.zinc950,
+        primaryContainer: AppPalette.accentDeep,
         error: AppPalette.dangerDark,
       );
 
@@ -221,9 +219,9 @@ abstract final class AppTheme {
 
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isDark ? AppPalette.ink700 : AppPalette.ink800,
+        backgroundColor: isDark ? AppPalette.zinc800 : AppPalette.zinc900,
         contentTextStyle: textTheme.bodyMedium?.copyWith(
-          color: AppPalette.ink50,
+          color: AppPalette.zinc100,
         ),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.allMd),
         insetPadding: const EdgeInsets.all(AppSpacing.lg),
@@ -232,9 +230,9 @@ abstract final class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        modalBarrierColor: AppPalette.ink900.withValues(alpha: 0.55),
+        modalBarrierColor: AppPalette.zinc950.withValues(alpha: 0.6),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: AppRadius.xl),
+          borderRadius: BorderRadius.vertical(top: AppRadius.xxl),
         ),
         showDragHandle: true,
       ),
@@ -249,10 +247,10 @@ abstract final class AppTheme {
 
       tooltipTheme: TooltipThemeData(
         decoration: const BoxDecoration(
-          color: AppPalette.ink800,
-          borderRadius: AppRadius.allXs,
+          color: AppPalette.zinc800,
+          borderRadius: AppRadius.allSm,
         ),
-        textStyle: textTheme.labelSmall?.copyWith(color: AppPalette.ink50),
+        textStyle: textTheme.labelSmall?.copyWith(color: AppPalette.zinc100),
       ),
 
       progressIndicatorTheme: ProgressIndicatorThemeData(

@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 @immutable
 class ChatTheme extends ThemeExtension<ChatTheme> {
   const ChatTheme({
+    required this.glassFill,
+    required this.glassStroke,
     required this.raisedSurface,
     required this.raisedBorder,
     required this.outgoingBubble,
@@ -35,70 +37,85 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   });
 
   static const ChatTheme light = ChatTheme(
+    // Glass over a near-white page has almost nothing to darken, so the fill is
+    // a whitening rather than a tint, and the stroke does most of the work of
+    // saying where the panel ends.
+    glassFill: Color(0x99FFFFFF),
+    glassStroke: Color(0x0F000000),
     raisedSurface: AppPalette.white,
-    raisedBorder: AppPalette.ink100,
-    // The user's own messages carry the brand colour: it is the one element on
-    // screen that should feel like "you", and it anchors the eye when scanning.
-    outgoingBubble: AppPalette.brandNavy,
-    onOutgoingBubble: AppPalette.ink50,
+    // Heavier than the glass stroke, and it has to be. A white card on a
+    // #F8FAFC page is 1.05:1 — the tonal step is not a separation at all, so
+    // this line *is* the card's edge rather than a refinement of it.
+    raisedBorder: Color(0x1F000000),
+    // The user's own messages carry the accent: it is the one element on screen
+    // that should feel like "you", and it anchors the eye when scanning.
+    outgoingBubble: AppPalette.accentDeep,
+    onOutgoingBubble: AppPalette.white,
     // Assistant messages are white on the canvas rather than a tinted fill.
     // Model output is long-form text and needs to read like a document page.
     incomingBubble: AppPalette.white,
-    onIncomingBubble: AppPalette.ink900,
-    bubbleBorder: AppPalette.ink100,
-    caret: AppPalette.brandNavy,
-    codeBackground: AppPalette.ink900,
-    codeBorder: AppPalette.ink700,
-    inlineCodeBackground: AppPalette.ink100,
+    onIncomingBubble: AppPalette.zinc900,
+    bubbleBorder: AppPalette.zinc200,
+    caret: AppPalette.accentDeep,
+    codeBackground: AppPalette.zinc900,
+    codeBorder: AppPalette.zinc800,
+    inlineCodeBackground: AppPalette.zinc200,
     composerBackground: AppPalette.white,
-    composerBorder: AppPalette.ink200,
-    onDeviceAccent: AppPalette.beaconLight,
-    offlineBanner: AppPalette.ink800,
-    onOfflineBanner: AppPalette.ink50,
+    composerBorder: AppPalette.zinc200,
+    onDeviceAccent: AppPalette.accentDeep,
+    offlineBanner: AppPalette.zinc800,
+    onOfflineBanner: AppPalette.zinc100,
     success: AppPalette.successLight,
     warning: AppPalette.warningLight,
     danger: AppPalette.dangerLight,
-    skeletonBase: AppPalette.ink100,
-    skeletonHighlight: AppPalette.ink50,
+    skeletonBase: AppPalette.zinc200,
+    skeletonHighlight: AppPalette.zinc100,
   );
 
   static const ChatTheme dark = ChatTheme(
-    // Lighter than the page, not darker. `surfaceContainerLowest` is what a card
-    // reaches for by reflex, and in Material's dark ramp that resolves to the
-    // *darkest* tone in the set — identical to the scaffold here, which is why
-    // the conversation cards were invisible in dark mode while looking correct
-    // in light. Elevation reads as light in the dark, so the token has to be
-    // semantic rather than positional.
-    raisedSurface: AppPalette.ink800,
-    raisedBorder: AppPalette.ink700,
-    // Dark mode inverts the emphasis: a saturated fill at full brightness is
-    // fatiguing, so the outgoing bubble uses a deep brand tone with a bright
-    // foreground instead.
-    // The outgoing bubble has to clear both the page and the incoming bubble,
-    // and the page is already the deepest tone in the ramp — so it lifts rather
-    // than deepens, which is the opposite of what light mode does.
-    outgoingBubble: AppPalette.ink600,
-    onOutgoingBubble: AppPalette.ink50,
-    incomingBubble: AppPalette.ink800,
-    onIncomingBubble: AppPalette.ink50,
-    bubbleBorder: AppPalette.ink700,
-    caret: AppPalette.brandNavyLifted,
-    // Below the page, not above it: a code block is a well, and ink950 is the
-    // one tone in the ramp that sits under ink900.
-    codeBackground: AppPalette.ink950,
-    codeBorder: AppPalette.ink700,
-    inlineCodeBackground: AppPalette.ink700,
-    composerBackground: AppPalette.ink800,
-    composerBorder: AppPalette.ink600,
-    onDeviceAccent: AppPalette.beaconDark,
-    offlineBanner: AppPalette.ink700,
-    onOfflineBanner: AppPalette.ink50,
+    // `Colors.white.withOpacity(0.05)` over the page, expressed as the literal
+    // it resolves to. Anything heavier stops being glass and becomes a panel.
+    glassFill: Color(0x0DFFFFFF),
+    glassStroke: Color(0x14FFFFFF),
+    raisedSurface: AppPalette.zinc900,
+    raisedBorder: Color(0x14FFFFFF),
+    outgoingBubble: AppPalette.accentDeep,
+    onOutgoingBubble: AppPalette.white,
+    incomingBubble: AppPalette.zinc900,
+    onIncomingBubble: AppPalette.zinc100,
+    bubbleBorder: AppPalette.zinc800,
+    caret: AppPalette.accent,
+    // Below the page, not above it: a code block is a well, and pure black is
+    // the one tone that sits under zinc950.
+    codeBackground: Color(0xFF000000),
+    codeBorder: AppPalette.zinc800,
+    inlineCodeBackground: AppPalette.zinc800,
+    composerBackground: AppPalette.zinc900,
+    composerBorder: AppPalette.zinc800,
+    onDeviceAccent: AppPalette.accent,
+    offlineBanner: AppPalette.zinc800,
+    onOfflineBanner: AppPalette.zinc100,
     success: AppPalette.successDark,
     warning: AppPalette.warningDark,
     danger: AppPalette.dangerDark,
-    skeletonBase: AppPalette.ink700,
-    skeletonHighlight: AppPalette.ink600,
+    skeletonBase: AppPalette.zinc800,
+    skeletonHighlight: AppPalette.zinc700,
   );
+
+  /// Translucent fill painted inside a glass panel.
+  ///
+  /// Glass needs *some* body or it reads as a smudge, but the fill is the first
+  /// thing to get overdone: past roughly 10% in dark mode the refraction stops
+  /// being visible and the panel just looks like frosted plastic.
+  final Color glassFill;
+
+  /// The 1px hairline around every glass panel.
+  ///
+  /// This is what makes glass read as glass rather than as a blurred region.
+  /// A real pane has an edge that catches light; without one the eye has no
+  /// boundary to attach the refraction to, and the effect reads as a rendering
+  /// artefact instead of a material.
+  final Color glassStroke;
 
   /// Fill for a card that must read as sitting above the page.
   ///
@@ -141,6 +158,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
 
   @override
   ChatTheme copyWith({
+    Color? glassFill,
+    Color? glassStroke,
     Color? raisedSurface,
     Color? raisedBorder,
     Color? outgoingBubble,
@@ -163,6 +182,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     Color? skeletonBase,
     Color? skeletonHighlight,
   }) => ChatTheme(
+    glassFill: glassFill ?? this.glassFill,
+    glassStroke: glassStroke ?? this.glassStroke,
     raisedSurface: raisedSurface ?? this.raisedSurface,
     raisedBorder: raisedBorder ?? this.raisedBorder,
     outgoingBubble: outgoingBubble ?? this.outgoingBubble,
@@ -191,6 +212,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   ChatTheme lerp(ChatTheme? other, double t) {
     if (other == null) return this;
     return ChatTheme(
+      glassFill: Color.lerp(glassFill, other.glassFill, t)!,
+      glassStroke: Color.lerp(glassStroke, other.glassStroke, t)!,
       raisedSurface: Color.lerp(raisedSurface, other.raisedSurface, t)!,
       raisedBorder: Color.lerp(raisedBorder, other.raisedBorder, t)!,
       outgoingBubble: Color.lerp(outgoingBubble, other.outgoingBubble, t)!,

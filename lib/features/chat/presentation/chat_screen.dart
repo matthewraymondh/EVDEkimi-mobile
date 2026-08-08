@@ -299,11 +299,16 @@ class _EmptyConversation extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const AppAvatar(label: 'AI', isAssistant: true, size: 56),
-            const SizedBox(height: AppSpacing.lg),
+            // No avatar. A 56px assistant mark above the greeting was the
+            // largest object on an otherwise empty screen, and it identified
+            // the one participant the user could not have been in any doubt
+            // about. The heading does the same job in words.
             Text(
               'Need anything?',
-              style: context.texts.headlineSmall,
+              style: context.texts.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -315,24 +320,78 @@ class _EmptyConversation extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            // Chips rather than stacked buttons: they read as suggestions to
-            // sample, not as the only four things the app can do.
+            // Outlined tiles rather than filled pills. These are suggestions
+            // for a screen that is otherwise empty, so they should sit quietly
+            // and let the composer stay the obvious next move — a row of
+            // saturated pills with 18px glyphs competed with it and won.
             Wrap(
               alignment: WrapAlignment.center,
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
                 for (final (label, prompt, icon) in _prompts)
-                  ActionChip(
-                    avatar: Icon(icon, size: AppSizes.iconSm),
-                    label: Text(label),
-                    onPressed: () => ref
+                  _PromptChip(
+                    label: label,
+                    icon: icon,
+                    onTap: () => ref
                         .read(chatControllerProvider(conversationId).notifier)
                         .send(prompt),
                   ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One suggestion on the empty state.
+///
+/// A hairline outline, a 16px muted glyph, and a 12px corner shared with the
+/// search field and the compose control — so the three read as one system
+/// rather than three visual languages on adjacent screens.
+class _PromptChip extends StatelessWidget {
+  const _PromptChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppRadius.allMd,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm + 2,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.allMd,
+            border: Border.all(color: context.chatTheme.glassStroke),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: context.colors.onSurfaceVariant),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                label,
+                style: context.texts.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

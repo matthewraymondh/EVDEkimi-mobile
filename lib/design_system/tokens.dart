@@ -25,12 +25,37 @@ abstract final class AppSpacing {
   static const double readableMaxWidth = 720;
 }
 
+/// Corner radii.
+///
+/// Tuned to the iOS control scale rather than Material's: inputs and chips at
+/// 12, cards at 16, floating chrome at 24. Those three carry almost everything,
+/// and keeping them a step apart is what stops nested surfaces looking like
+/// concentric arcs.
+///
+/// The values are also the *shader's* radius for glass surfaces, which is why
+/// they are exposed as plain doubles alongside the `BorderRadius` forms —
+/// `LiquidRoundedSuperellipse` takes a number, not a `BorderRadius`.
 abstract final class AppRadius {
-  static const Radius xs = Radius.circular(6);
-  static const Radius sm = Radius.circular(10);
-  static const Radius md = Radius.circular(14);
-  static const Radius lg = Radius.circular(20);
-  static const Radius xl = Radius.circular(28);
+  static const double xsValue = 6;
+  static const double smValue = 8;
+
+  /// Inputs, chips, and anything the finger treats as a single control.
+  static const double mdValue = 12;
+
+  /// Cards and grouped list containers.
+  static const double lgValue = 16;
+
+  static const double xlValue = 20;
+
+  /// Floating chrome: the navigation bar and the composer.
+  static const double xxlValue = 24;
+
+  static const Radius xs = Radius.circular(xsValue);
+  static const Radius sm = Radius.circular(smValue);
+  static const Radius md = Radius.circular(mdValue);
+  static const Radius lg = Radius.circular(lgValue);
+  static const Radius xl = Radius.circular(xlValue);
+  static const Radius xxl = Radius.circular(xxlValue);
   static const Radius pill = Radius.circular(999);
 
   static const BorderRadius allXs = BorderRadius.all(xs);
@@ -38,6 +63,7 @@ abstract final class AppRadius {
   static const BorderRadius allMd = BorderRadius.all(md);
   static const BorderRadius allLg = BorderRadius.all(lg);
   static const BorderRadius allXl = BorderRadius.all(xl);
+  static const BorderRadius allXxl = BorderRadius.all(xxl);
   static const BorderRadius allPill = BorderRadius.all(pill);
 
   /// Chat bubbles: three round corners and one tucked corner pointing at the

@@ -314,42 +314,52 @@ concepts, not Material roles. Putting them there rather than reaching for
 render a colour that only works in one theme. A widget test renders the transcript
 in both themes to keep that true.
 
-**The palette is four values on one hue axis**, and the design follows from
-taking that literally:
+**The palette is a neutral ramp and one accent.**
 
 | | | |
 |---|---|---|
-| `#0F044C` | deep indigo | dark page · light-mode text |
-| `#141E61` | navy | the brand · every raised surface in dark mode |
-| `#787A91` | slate | borders and tertiary marks |
-| `#EEEEEE` | mist | light page · dark-mode text |
+| `#09090B` | zinc-950 | dark page |
+| `#18181B` | zinc-900 | dark glass fill and raised surfaces |
+| `#A1A1AA` | zinc-400 | dark secondary text |
+| `#F4F4F5` | zinc-100 | dark primary text |
+| `#F8FAFC` | slate-50 | light page |
+| `#3B82F6` | blue-500 | every active state |
 
-It is a value ramp, not a colour scheme — no accent, no second hue — so
-hierarchy is carried by lightness alone and the ramp desaturates as it lightens.
-The scheme is still seeded from the brand navy so Material's generated roles stay
-related, then the roles that carry the design are overridden by hand; a chat app
-is mostly surface, and `fromSeed` spreads a tonal palette across those surfaces
-that does not match the four values the brand is built from.
+The greys are true neutrals — no seeded tint, no borrowed hue — and that is the
+load-bearing decision rather than an aesthetic one: **glass has to be the most
+colourful thing in a panel.** A tinted surface competes with the refraction and
+the effect stops reading as a material. `ColorScheme.fromSeed` spreads exactly
+such a tint across every surface, which is why the scheme overrides them all by
+hand.
 
 Three consequences worth naming:
 
-- **Elevation is the two navies.** In dark mode the page is `#0F044C` and
-  anything raised is `#141E61`, which replaces shadows, borders and Material's
-  elevation overlays. This also fixed a real bug: cards used
-  `surfaceContainerLowest`, which in Material's *dark* ramp is the darkest tone
-  in the set and resolved to exactly the scaffold colour — the card structure
-  rendered correctly in light mode and was invisible in dark.
-- **One saturated colour, `beacon`, reserved for the on-device signal.** A
-  single-hue ramp cannot mark anything: slate on a card is indistinguishable from
-  ordinary secondary text. Rather than introduce a second hue, `beacon` spikes
-  the saturation of the hue already present, so the app stays one colour end to
-  end. It appears on the on-device badge and nowhere else.
-- **Derived steps exist to clear contrast, not to decorate.** `#787A91` on
-  `#EEEEEE` is 3.63:1 — comfortably readable-looking, and under the 4.5:1 floor
-  for body copy, which is the role that sets every excerpt and caption in the
-  app. `test/design_system/palette_contrast_test.dart` asserts a floor for all 28
-  foreground/background pairs the app actually paints, in both themes, and fails
-  on exactly that substitution.
+- **The 1px stroke is not trim.** Every glass panel carries a hairline —
+  `Colors.white` at 8% in dark, `Colors.black` at 6% in light — because a
+  blurred region with soft edges looks like something failing to render rather
+  than something physically present. A real pane has a machined edge that
+  catches light, and without one the eye has no boundary to attach the
+  refraction to. It is drawn on `LiquidRoundedSuperellipse` itself, so the line
+  follows the exact curve the shader used instead of an approximated rounded
+  rect that drifts at the corners.
+- **The stroke is also what separates a card from its page.** Neither theme does
+  it by tone: white on `#F8FAFC` is 1.05:1, and `#18181B` on `#09090B` is
+  1.13:1. Near-white on near-white cannot go much higher and the dark pair is
+  specified, so the contrast test puts its floor on the *edge* rather than the
+  fills — and asserts separately that a card is never literally the page colour,
+  which is the bug that prompted the file.
+- **Blur is low on purpose.** σ12, between the package's default of 5 and the
+  point where it stops being glass. Blur and refraction compete: past roughly
+  σ16 the backdrop is smeared flat, there is nothing structured left to bend,
+  and the panel reads as frosted plastic.
+
+Derived tones exist to clear contrast, not to decorate. `#A1A1AA` is a
+comfortable 7.8:1 on the dark page and 2.5:1 on the light one — still perfectly
+readable-looking in a swatch, and a third of what body copy needs — so the light
+theme derives `zinc500` rather than reusing it.
+`test/design_system/palette_contrast_test.dart` asserts a floor for every
+foreground/background pair the app paints, in both themes, that the specified
+values survive as themselves, and that the ramp is actually grey.
 
 **Typography uses the platform font deliberately.** A bundled webfont means a
 larger download and a runtime fetch that fails offline — unacceptable in an app

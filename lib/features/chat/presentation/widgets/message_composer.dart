@@ -182,9 +182,10 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
       }
     });
 
-    // A floating pill rather than a docked bar: it reads as something you reach
-    // for, and letting the canvas show beneath keeps the transcript feeling
-    // continuous instead of cut off by a hard edge.
+    // One continuous bar. Every control in it is the same size and sits on the
+    // same centre line, and the gaps between them are one constant rather than
+    // whatever each widget's default padding happened to be — which is what
+    // produced the uneven spacing this replaces.
     return SafeArea(
       top: false,
       child: Padding(
@@ -195,16 +196,16 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
           AppSpacing.md,
         ),
         child: GlassSurface(
-          cornerRadius: 28,
+          cornerRadius: AppRadius.xxlValue,
           fallbackColor: chat.composerBackground,
           shadows: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
           ],
-          padding: const EdgeInsets.all(AppSpacing.xs),
+          padding: const EdgeInsets.all(AppSpacing.sm),
           child: Column(
             children: [
               if (composer.hasAttachments)
@@ -216,16 +217,13 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  IconButton(
-                    onPressed: composer.isAttaching ? null : _showAttachSheet,
+                  _ComposerAction(
+                    icon: Icons.add_rounded,
                     tooltip: 'Attach an image',
-                    icon: composer.isAttaching
-                        ? const SizedBox.square(
-                            dimension: AppSizes.iconSm,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.add_photo_alternate_outlined),
+                    isBusy: composer.isAttaching,
+                    onTap: composer.isAttaching ? null : _showAttachSheet,
                   ),
+                  const SizedBox(width: AppSpacing.xs),
 
                   Expanded(
                     child: ConstrainedBox(
@@ -242,15 +240,23 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                             : TextInputAction.newline,
                         keyboardType: TextInputType.multiline,
                         textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
+                        style: context.texts.bodyMedium,
+                        decoration: InputDecoration(
                           hintText: 'Message EVDEkimi…',
+                          hintStyle: context.texts.bodyMedium?.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                          ),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           filled: false,
-                          contentPadding: EdgeInsets.symmetric(
+                          isDense: true,
+                          // Centres the first line against the controls either
+                          // side. Material's default vertical padding assumes a
+                          // 48px field and pushes the text off that centre line.
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.md,
+                            vertical: 11,
                           ),
                         ),
                         onSubmitted: settings.sendOnEnter
@@ -262,16 +268,15 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     ),
                   ),
 
-                  IconButton(
-                    onPressed: _toggleDictation,
+                  const SizedBox(width: AppSpacing.xs),
+                  _ComposerAction(
+                    icon: isListening
+                        ? Icons.mic_rounded
+                        : Icons.mic_none_rounded,
                     tooltip: isListening ? 'Stop dictation' : 'Dictate',
-                    isSelected: isListening,
-                    icon: Icon(
-                      isListening ? Icons.mic : Icons.mic_none_rounded,
-                      color: isListening ? chat.danger : null,
-                    ),
+                    color: isListening ? chat.danger : null,
+                    onTap: _toggleDictation,
                   ),
-
                   const SizedBox(width: AppSpacing.xs),
                   _SendButton(
                     isGenerating: widget.isGenerating,
@@ -312,33 +317,114 @@ class _SendButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chat = context.chatTheme;
-    return AnimatedContainer(
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
-      width: AppSizes.minTapTarget,
-      height: AppSizes.minTapTarget,
-      decoration: BoxDecoration(
-        color: isGenerating
-            ? chat.danger.withValues(alpha: 0.14)
-            : isEnabled
-            ? context.colors.primary
-            : context.colors.surfaceContainerHigh,
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        onPressed: isGenerating
-            ? onStop
-            : isEnabled
-            ? onSend
-            : null,
-        tooltip: isGenerating ? 'Stop generating' : 'Send',
-        icon: Icon(
-          isGenerating ? Icons.stop_rounded : Icons.arrow_upward_rounded,
+    return Tooltip(
+      message: isGenerating ? 'Stop generating' : 'Send',
+      child: AnimatedContainer(
+        duration: AppDuration.fast,
+        curve: AppCurve.standard,
+        width: composerControlSize,
+        height: composerControlSize,
+        decoration: BoxDecoration(
           color: isGenerating
-              ? chat.danger
+              ? chat.danger.withValues(alpha: 0.16)
               : isEnabled
-              ? context.colors.onPrimary
-              : context.colors.onSurfaceVariant,
+              ? context.colors.primary
+              : context.colors.onSurface.withValues(alpha: 0.08),
+          // The same 12px corner as the attach and mic controls beside it, so
+          // the row is three of one shape rather than two shapes and a circle.
+          borderRadius: AppRadius.allMd,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: isGenerating
+                ? onStop
+                : isEnabled
+                ? onSend
+                : null,
+            child: Center(
+              child: Icon(
+                isGenerating ? Icons.stop_rounded : Icons.arrow_upward_rounded,
+                size: AppSizes.iconMd,
+                color: isGenerating
+                    ? chat.danger
+                    : isEnabled
+                    ? context.colors.onPrimary
+                    : context.colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Side of every control in the composer row.
+///
+/// One constant shared by the attach, dictate and send controls so they cannot
+/// drift apart and leave the row looking assembled rather than designed.
+const double composerControlSize = 40;
+
+/// A flat icon tap in the composer, sized to match the send button exactly.
+///
+/// Deliberately not an `IconButton`. That widget reserves a 48px box regardless
+/// of its glyph and centres a 24px icon inside it, so a row of them spaces
+/// itself by each widget's internal padding rather than by the layout's — which
+/// is where the composer's uneven gaps came from. Here the box and the glyph are
+/// both explicit, which is the only way adjacent controls end up optically even.
+class _ComposerAction extends StatelessWidget {
+  const _ComposerAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.color,
+    this.isBusy = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  final Color? color;
+  final bool isBusy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: AppRadius.allMd,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              width: composerControlSize,
+              height: composerControlSize,
+              child: Center(
+                child: isBusy
+                    ? const SizedBox.square(
+                        dimension: AppSizes.iconSm,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        icon,
+                        size: AppSizes.iconMd,
+                        color:
+                            color ??
+                            (onTap == null
+                                ? context.colors.onSurface.withValues(
+                                    alpha: 0.3,
+                                  )
+                                : context.colors.onSurfaceVariant),
+                      ),
+              ),
+            ),
+          ),
         ),
       ),
     );

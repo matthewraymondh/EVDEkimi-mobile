@@ -111,15 +111,14 @@ Future<void> startNewConversation(BuildContext context, WidgetRef ref) async {
   );
 }
 
-/// Time-aware greeting with the user's avatar.
+/// Time-aware greeting with the account control.
 ///
 /// Replaces a generic "Conversations" app bar. The screen is the app's home, and
 /// a personal header reads as arrival rather than as a list view.
 ///
-/// The greeting is the larger of the two lines. That inversion is deliberate:
-/// the account name is the least interesting thing on the screen, and setting it
-/// in a display size — which is where this started — gives the most prominent
-/// typography to a string the user already knows and cannot act on.
+/// The greeting outranks the account name, which is the inversion of where this
+/// started. The name was set in display type — the most prominent typography on
+/// the screen given to a string the user already knows and cannot act on.
 class _GreetingHeader extends StatelessWidget {
   const _GreetingHeader({
     required this.name,
@@ -149,17 +148,17 @@ class _GreetingHeader extends StatelessWidget {
                 Text(
                   _greeting(),
                   style: context.texts.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.3,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (name != null) ...[
-                  const SizedBox(height: AppSpacing.xxs),
+                  const SizedBox(height: 1),
                   Text(
                     name!,
-                    style: context.texts.bodyMedium?.copyWith(
+                    style: context.texts.bodySmall?.copyWith(
                       color: context.colors.onSurfaceVariant,
                     ),
                     maxLines: 1,
@@ -184,18 +183,18 @@ class _GreetingHeader extends StatelessWidget {
   }
 }
 
-/// The avatar, as an actual control.
+/// The account control, which opens Settings.
 ///
-/// A bare circle is indistinguishable from decoration — which is what it was,
-/// and why nobody would guess it opens settings. The ring and the ink response
-/// are what make it read as pressable.
+/// Stripped back to a monogram on a flat tint. It previously carried a ring, a
+/// fill and a shape of its own, which made a 42px square the most decorated
+/// object in the header while being the least important thing in it.
 class _AvatarButton extends StatelessWidget {
   const _AvatarButton({required this.initials, required this.onTap});
 
   final String initials;
   final VoidCallback onTap;
 
-  static const double _size = 42;
+  static const double _size = 38;
 
   @override
   Widget build(BuildContext context) {
@@ -203,10 +202,8 @@ class _AvatarButton extends StatelessWidget {
       button: true,
       label: 'Settings',
       child: Material(
-        color: context.colors.surfaceContainerHigh,
-        shape: CircleBorder(
-          side: BorderSide(color: context.colors.outlineVariant),
-        ),
+        color: context.colors.onSurface.withValues(alpha: 0.06),
+        borderRadius: AppRadius.allMd,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -216,8 +213,8 @@ class _AvatarButton extends StatelessWidget {
             child: Center(
               child: Text(
                 initials,
-                style: context.texts.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
+                style: context.texts.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                   color: context.colors.onSurfaceVariant,
                 ),
               ),
@@ -234,6 +231,10 @@ class _AvatarButton extends StatelessWidget {
 /// Not a real input: search runs on-device embeddings and deserves its own
 /// screen, but a plain icon in an app bar hides the app's most distinctive
 /// feature. This advertises it.
+///
+/// Flat rather than glass, and a tint rather than a stroke. Chrome that floats
+/// gets glass; a field sitting *in* the page gets a 6% wash of the foreground
+/// colour, which is one rule for both themes and needs no border to be legible.
 class _SearchPrompt extends StatelessWidget {
   const _SearchPrompt({required this.onTap});
 
@@ -241,7 +242,6 @@ class _SearchPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chat = context.chatTheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.gutter,
@@ -250,20 +250,15 @@ class _SearchPrompt extends StatelessWidget {
         AppSpacing.lg,
       ),
       child: Material(
-        color: context.chatTheme.raisedSurface,
-        borderRadius: AppRadius.allPill,
+        color: context.colors.onSurface.withValues(alpha: 0.06),
+        borderRadius: AppRadius.allMd,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Container(
-            height: AppSizes.minTapTarget,
-            padding: const EdgeInsets.only(
-              left: AppSpacing.lg,
-              right: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.allPill,
-              border: Border.all(color: context.chatTheme.raisedBorder),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
             child: Row(
               children: [
@@ -281,15 +276,14 @@ class _SearchPrompt extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Quieter than it was. This is a capability tag, not a button,
-                // and at full badge weight it read as the primary action in a
-                // field whose primary action is the field itself.
+                // The on-device claim, at the smallest weight that still reads.
+                // It was a filled badge, which made the loudest element in the
+                // field the one thing in it that is not interactive.
                 Icon(
-                  Icons.memory_rounded,
+                  Icons.bolt_rounded,
                   size: AppSizes.iconSm,
-                  color: chat.onDeviceAccent,
+                  color: context.chatTheme.onDeviceAccent,
                 ),
-                const SizedBox(width: AppSpacing.sm),
               ],
             ),
           ),
@@ -477,9 +471,20 @@ class _ConversationTile extends ConsumerWidget {
         AppSpacing.gutter,
         isLast ? AppSpacing.xs : 0,
       ),
+      // The stroke, not the fill, is what makes the card an object. White on
+      // #F8FAFC is 1.05:1 and #18181B on #09090B is 1.13:1 — neither theme
+      // separates a card from its page by tone, so a hairline does it in both.
+      //
+      // Uniform rather than per-edge, because a `BoxDecoration` cannot carry a
+      // rounded shape and a partial border at once. Adjacent rows therefore
+      // abut, and that pair of hairlines *is* the internal separator — which is
+      // why `_TileBody` no longer draws one of its own.
       child: Material(
         color: context.chatTheme.raisedSurface,
-        borderRadius: shape,
+        shape: RoundedRectangleBorder(
+          borderRadius: shape,
+          side: BorderSide(color: context.chatTheme.raisedBorder),
+        ),
         clipBehavior: Clip.antiAlias,
         child: Dismissible(
           key: ValueKey('dismiss-${conversation.id}'),
@@ -506,7 +511,7 @@ class _ConversationTile extends ConsumerWidget {
           child: InkWell(
             onTap: () => context.push(AppRoutes.chatPath(conversation.id)),
             onLongPress: () => _showActions(context, ref),
-            child: _TileBody(conversation: conversation, showRule: !isLast),
+            child: _TileBody(conversation: conversation),
           ),
         ),
       ),
@@ -578,27 +583,19 @@ class _ConversationTile extends ConsumerWidget {
 
 /// The row's content, split out so the swipe background never rebuilds it.
 class _TileBody extends StatelessWidget {
-  const _TileBody({required this.conversation, required this.showRule});
+  const _TileBody({required this.conversation});
 
   final Conversation conversation;
-  final bool showRule;
 
   @override
   Widget build(BuildContext context) {
     final subtitle = _subtitleFor(conversation);
     final isOnDevice = conversation.engine.isOnDevice;
 
-    return Container(
+    return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        // A hairline instead of a gap. Rows in one group belong together, and a
-        // rule says that in one pixel where whitespace needed sixteen.
-        border: showRule
-            ? Border(bottom: BorderSide(color: context.chatTheme.raisedBorder))
-            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

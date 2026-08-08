@@ -46,9 +46,20 @@ class GlassScope extends InheritedWidget {
 /// A glass panel that degrades to an opaque one.
 ///
 /// The fallback is not "the same thing without blur": it uses the solid surface
-/// colour with the same radius, border and shadows, so switching glass off
+/// colour with the same radius, stroke and shadows, so switching glass off
 /// changes the material and nothing else. Layout, hit targets and geometry are
 /// identical either way.
+///
+/// ## The stroke is not trim
+///
+/// Every panel gets a 1px hairline, and it is the single detail that decides
+/// whether the effect reads as a material or as a bug. A real pane of glass has
+/// a machined edge that catches light; without one the eye has no boundary to
+/// attach the refraction to, and a blurred region with soft edges looks like a
+/// rendering artefact — something failing to resolve — rather than something
+/// physically there. It is drawn on `LiquidRoundedSuperellipse` itself rather
+/// than an approximated `RoundedRectangleBorder`, so the line follows the exact
+/// curve the shader used and does not drift away from it at the corners.
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     required this.child,
@@ -65,23 +76,31 @@ class GlassSurface extends StatelessWidget {
   /// Applied in both modes; glass still needs to read as raised.
   final List<BoxShadow> shadows;
 
-  /// Opaque colour used when glass is off. Defaults to the lowest surface.
+  /// Opaque colour used when glass is off. Defaults to the raised surface.
   final Color? fallbackColor;
 
   final EdgeInsetsGeometry? padding;
 
+  /// Backdrop blur, in logical pixels.
+  ///
+  /// Low on purpose. Blur and refraction compete: past roughly σ16 the backdrop
+  /// is smeared flat, there is nothing structured left to bend, and the panel
+  /// reads as frosted plastic. The package's own default of 5 is too little to
+  /// separate the panel from busy content, so this sits between the two.
+  static const double _blurSigma = 12;
+
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(cornerRadius);
+    final chat = context.chatTheme;
+    final shape = LiquidRoundedSuperellipse(borderRadius: cornerRadius);
 
     if (!GlassScope.of(context)) {
       return Container(
         padding: padding,
-        decoration: BoxDecoration(
-          color: fallbackColor ?? context.colors.surfaceContainerLowest,
-          borderRadius: radius,
-          border: Border.all(color: context.colors.outlineVariant),
-          boxShadow: shadows,
+        decoration: ShapeDecoration(
+          color: fallbackColor ?? chat.raisedSurface,
+          shape: shape.copyWith(side: BorderSide(color: chat.glassStroke)),
+          shadows: shadows,
         ),
         child: child,
       );
@@ -90,22 +109,39 @@ class GlassSurface extends StatelessWidget {
     return DecoratedBox(
       // The shadow sits outside the glass: a glass layer captures and refracts
       // its own backdrop, and a shadow inside would be refracted along with it.
-      decoration: BoxDecoration(borderRadius: radius, boxShadow: shadows),
-      child: GlassContainer(
-        // A superellipse, not a circular-radius rounded rect. It is what iOS 26
-        // uses, and the continuous curvature is most of why the corners read as
-        // moulded rather than cut.
-        shape: LiquidRoundedSuperellipse(borderRadius: cornerRadius),
-        // Premium runs the full Impeller pipeline — texture capture, refraction
-        // and chromatic aberration. Correct here specifically because these are
-        // *fixed* surfaces: the package warns premium can misrender inside a
-        // scrollable, and neither the nav bar nor the composer scrolls.
-        quality: GlassQuality.premium,
-        // Isolates this surface's backdrop capture, which is what stops the two
-        // glass layers on the chat screen sampling each other.
-        useOwnLayer: true,
-        padding: padding,
-        child: child,
+      decoration: ShapeDecoration(shape: shape, shadows: shadows),
+      child: Container(
+        // Painted over the glass, not under it, so the refraction cannot wash
+        // the edge out. `foregroundDecoration` with no fill draws the stroke
+        // alone.
+        foregroundDecoration: ShapeDecoration(
+          shape: shape.copyWith(side: BorderSide(color: chat.glassStroke)),
+        ),
+        child: GlassContainer(
+          // A superellipse, not a circular-radius rounded rect. It is what
+          // iOS 26 uses, and the continuous curvature is most of why the corners
+          // read as moulded rather than cut.
+          shape: shape,
+          settings: LiquidGlassSettings(
+            blur: _blurSigma,
+            glassColor: chat.glassFill,
+            // The package boosts saturation by default to make glass look
+            // lively over colourful content. On a neutral palette there is
+            // almost nothing to boost, and what little there is turns the one
+            // accent garish, so this is pulled back close to neutral.
+            saturation: 1.1,
+          ),
+          // Premium runs the full Impeller pipeline — texture capture,
+          // refraction and chromatic aberration. Correct here specifically
+          // because these are *fixed* surfaces: the package warns premium can
+          // misrender inside a scrollable, and none of this chrome scrolls.
+          quality: GlassQuality.premium,
+          // Isolates this surface's backdrop capture, which is what stops the
+          // two glass layers on the chat screen sampling each other.
+          useOwnLayer: true,
+          padding: padding,
+          child: child,
+        ),
       ),
     );
   }
@@ -114,10 +150,16 @@ class GlassSurface extends StatelessWidget {
 /// The soft wash that gives glass something to refract.
 ///
 /// Glass bends what is behind it, so over a flat fill it bends nothing and reads
-/// as slightly murky plastic. Two very low-opacity brand blooms give the chrome
-/// gradients to distort. Kept subtle on purpose — if you notice it *as* a
-/// gradient it is too strong; its job is to make the chrome above it look like
-/// glass.
+/// as slightly murky plastic. Two very low-opacity blooms give the chrome
+/// gradients to distort.
+///
+/// **Light, not colour.** These were brand-tinted washes when the palette had a
+/// hue to spend. On a true neutral base a coloured bloom is immediately obvious
+/// — it turns the page into a gradient wallpaper and undoes the whole reason the
+/// greys are untinted. So the blooms are now white in dark mode and black in
+/// light: pure luminance gradients, invisible as colour, doing exactly the job
+/// required of them, which is to vary the backdrop so refraction has structure
+/// to find. If you can see them *as* blooms they are too strong.
 ///
 /// Renders nothing when glass is disabled, so the plain theme stays plain.
 class AppBackdrop extends StatelessWidget {
@@ -130,13 +172,7 @@ class AppBackdrop extends StatelessWidget {
     if (!GlassScope.of(context)) return child;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primary = context.colors.primary;
-    // Both blooms are brand tones. The second one used the on-device accent,
-    // which was a quiet way of spending the app's only signal colour on
-    // decoration — and now that the accent is a saturated periwinkle rather
-    // than a muted brass, a screen-height wash of it would read as the loudest
-    // thing in the app while meaning nothing.
-    final secondary = context.colors.primaryContainer;
+    final light = isDark ? Colors.white : Colors.black;
 
     return Stack(
       children: [
@@ -153,11 +189,7 @@ class AppBackdrop extends StatelessWidget {
                 center: const Alignment(-0.75, -0.35),
                 radius: 1.3,
                 colors: [
-                  // Lower than it was in dark mode. The page is now a saturated
-                  // indigo rather than a near-black, so it already carries the
-                  // colour the bloom used to have to supply — the bloom only
-                  // has to give the glass a gradient to bend.
-                  primary.withValues(alpha: isDark ? 0.16 : 0.20),
+                  light.withValues(alpha: isDark ? 0.05 : 0.03),
                   Colors.transparent,
                 ],
               ),
@@ -171,7 +203,7 @@ class AppBackdrop extends StatelessWidget {
                 center: const Alignment(0.9, 0.7),
                 radius: 1.2,
                 colors: [
-                  secondary.withValues(alpha: isDark ? 0.20 : 0.16),
+                  light.withValues(alpha: isDark ? 0.035 : 0.02),
                   Colors.transparent,
                 ],
               ),

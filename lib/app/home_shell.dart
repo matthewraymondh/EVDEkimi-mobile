@@ -41,17 +41,24 @@ class HomeShell extends ConsumerWidget {
   }
 }
 
-/// How far the primary action sits above the bar.
+/// Height of the bar itself, shared by the panel and by every control in it.
 ///
-/// Only viable because there are exactly two destinations: the action lands at
-/// true centre, and lifting an off-centre element would look like a mistake.
-const double _actionLift = 12;
+/// One constant rather than three, because the previous version had the primary
+/// action lifted *above* the panel: the bar's silhouette was a capsule with a
+/// disc breaking its top edge, its layout slot had to be padded to contain the
+/// overhang, and the whole assembly measured taller than the surface it looked
+/// like. Nothing in the bar can now be a different height from anything else.
+const double _barHeight = 64;
 
-/// Diameter of the primary action. Shared by the button and by the gap the bar
-/// reserves for it, so the two cannot drift apart.
-const double _actionSize = 52;
+/// Side of the primary action and of each destination's tap target.
+const double _slotSize = 48;
 
-/// A floating pill navigation bar with a raised primary action in the middle.
+/// A floating glass navigation bar.
+///
+/// Three inline slots, evenly spaced, all the same height. The compose action is
+/// a filled control *in* the row rather than a raised circle above it — which is
+/// both the native iOS reading of a bottom bar and the reason the panel now has
+/// a single unbroken edge for its hairline to follow.
 class _FloatingNavBar extends ConsumerWidget {
   const _FloatingNavBar({
     required this.currentIndex,
@@ -70,82 +77,56 @@ class _FloatingNavBar extends ConsumerWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        // Top padding equal to the action's lift, so the bar's own layout slot
-        // is tall enough to contain it. Without this the raised button would be
-        // clipped at the top edge.
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl,
-          _actionLift,
-          AppSpacing.xl,
+          AppSpacing.gutter,
+          0,
+          AppSpacing.gutter,
           AppSpacing.md,
         ),
-        // The raised action is a *sibling* of the glass panel, not its child.
-        // LiquidGlassLens clips its child to the lens shape, so a button lifted
-        // above the capsule was being sliced off at the rim. Keeping it outside
-        // the lens also stops the button refracting itself.
         child: SizedBox(
-          height: 68,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(child: _buildBar(context, pending)),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: -_actionLift,
-                child: Center(child: _NewChatButton(onTap: onNewChat)),
+          height: _barHeight,
+          child: GlassSurface(
+            cornerRadius: AppRadius.xxlValue,
+            // Two shadows, not one. A single wide blur reads as fog; a tight
+            // contact shadow plus a wide ambient one is how a real object sits
+            // above a surface. This is the only elevated element in the app, so
+            // it is the one place the cost is justified.
+            shadows: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
               ),
             ],
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _NavItem(
+                  icon: Icons.forum_outlined,
+                  activeIcon: Icons.forum_rounded,
+                  label: 'Chats',
+                  isActive: currentIndex == 0,
+                  badgeCount: pending,
+                  onTap: () => onSelect(0),
+                ),
+                _NewChatButton(onTap: onNewChat),
+                _NavItem(
+                  icon: Icons.settings_outlined,
+                  activeIcon: Icons.settings_rounded,
+                  label: 'Settings',
+                  isActive: currentIndex == 1,
+                  onTap: () => onSelect(1),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildBar(BuildContext context, int pending) {
-    return GlassSurface(
-      // Half the height, so the continuous-corner shape resolves to a
-      // true capsule rather than a rounded rectangle.
-      cornerRadius: 34,
-      // Two shadows, not one. A single wide blur reads as fog; a tight
-      // contact shadow plus a wide ambient one is how a real object sits
-      // above a surface. This is the only elevated element in the app, so
-      // it is the one place the cost is justified.
-      shadows: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 4,
-          offset: const Offset(0, 2),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.07),
-          blurRadius: 28,
-          offset: const Offset(0, 12),
-        ),
-      ],
-      // Three equal slots, so the middle one centres at exactly 50%. The middle
-      // slot is an empty box the width of the action, reserving the space the
-      // real button occupies as an overlay above.
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _NavItem(
-            icon: Icons.forum_outlined,
-            activeIcon: Icons.forum_rounded,
-            label: 'Chats',
-            isActive: currentIndex == 0,
-            badgeCount: pending,
-            onTap: () => onSelect(0),
-          ),
-          const SizedBox(width: _actionSize),
-          _NavItem(
-            icon: Icons.settings_outlined,
-            activeIcon: Icons.settings_rounded,
-            label: 'Settings',
-            isActive: currentIndex == 1,
-            onTap: () => onSelect(1),
-          ),
-        ],
       ),
     );
   }
@@ -184,8 +165,8 @@ class _NavItem extends StatelessWidget {
         child: SizedBox(
           // Tap target stays a full 48dp even though the visible indicator is
           // 40 — the accessibility floor is about the finger, not the paint.
-          width: AppSizes.minTapTarget,
-          height: AppSizes.minTapTarget,
+          width: _slotSize,
+          height: _slotSize,
           child: Stack(
             alignment: Alignment.center,
             clipBehavior: Clip.none,
@@ -201,8 +182,10 @@ class _NavItem extends StatelessWidget {
                 width: isActive ? 40 : 0,
                 height: isActive ? 40 : 0,
                 decoration: BoxDecoration(
-                  color: context.colors.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+                  color: context.colors.primary.withValues(alpha: 0.14),
+                  // A squircle, not a disc, so the selected destination and the
+                  // compose control read as the same family of object.
+                  borderRadius: AppRadius.allMd,
                 ),
               ),
               AnimatedSwitcher(
@@ -226,10 +209,12 @@ class _NavItem extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: context.chatTheme.warning,
                       borderRadius: AppRadius.allPill,
-                      // Ring in the bar's own colour so the badge separates from
-                      // the icon beneath it without needing a drop shadow.
+                      // Ring in the page colour so the badge separates from the
+                      // icon beneath it without needing a drop shadow. The bar
+                      // itself is translucent, so its own fill is not a colour
+                      // anything can be matched against.
                       border: Border.all(
-                        color: context.colors.surfaceContainerLowest,
+                        color: context.colors.surface,
                         width: 2,
                       ),
                     ),
@@ -256,15 +241,14 @@ class _NavItem extends StatelessWidget {
 /// The primary action.
 ///
 /// Starting a conversation is what every session begins with, so it is filled
-/// and slightly larger rather than sharing the flat treatment of the
-/// destinations around it.
+/// while the destinations around it are flat. A rounded square rather than a
+/// circle: at 12px it is the same corner as the search field and the prompt
+/// chips, which makes it read as a control from this app rather than a Material
+/// FAB that wandered into the bar.
 ///
-/// Deliberately a **solid brand fill, not a gradient**. The earlier version
-/// blended primary into the on-device accent, which was wrong twice over: that
-/// amber is a semantic colour meaning "this ran locally", and spending it as
-/// decoration erodes a signal the message footers and Settings rely on; and a
-/// two-hue gradient with no meaning behind it is the hallmark of a button
-/// designed by defaults. One confident colour reads as intent.
+/// Deliberately a **solid accent fill, not a gradient**. A two-hue gradient with
+/// no meaning behind it is the hallmark of a button designed by defaults. One
+/// confident colour reads as intent.
 class _NewChatButton extends StatefulWidget {
   const _NewChatButton({required this.onTap});
 
@@ -299,26 +283,16 @@ class _NewChatButtonState extends State<_NewChatButton> {
             duration: AppDuration.instant,
             curve: AppCurve.standard,
             child: Container(
-              width: _actionSize,
-              height: _actionSize,
+              width: _slotSize,
+              height: _slotSize,
               decoration: BoxDecoration(
                 color: context.colors.primary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  // Tinted with the button's own colour rather than black:
-                  // a coloured object casts a coloured shadow, and a grey one
-                  // under a saturated fill reads as dirt.
-                  BoxShadow(
-                    color: context.colors.primary.withValues(alpha: 0.28),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                borderRadius: AppRadius.allMd,
               ),
               child: Icon(
                 Icons.add_rounded,
                 color: context.colors.onPrimary,
-                size: AppSizes.iconLg,
+                size: AppSizes.iconMd,
               ),
             ),
           ),

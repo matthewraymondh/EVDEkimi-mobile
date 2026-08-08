@@ -341,9 +341,14 @@ class OnDeviceEngine implements InferenceEngine {
         '(${(prediction.confidence * 100).toStringAsFixed(0)}% confidence) in a '
         'few milliseconds, but it is a small classifier and embedder — not a '
         'local LLM, and not connected to our listings.\n\n'
-        '**To get a real answer:** reconnect and pick a cloud model, or keep '
-        'this message queued — it will send automatically once you are back '
-        'online.';
+        // Deliberately does *not* promise that this will send itself later.
+        // Answering at all counts as delivery, so the outbox row for this
+        // message is already gone by the time it is read — the earlier wording
+        // said it would auto-send once back online, which was a promise the
+        // same code path had just made impossible to keep.
+        '**To get a real answer:** reconnect and ask again, or switch to a '
+        'cloud model in the model picker. Nothing is queued behind this — the '
+        'question needs an engine this device does not have.';
   }
 
   /// Splits text into word-sized chunks that concatenate back to the original.

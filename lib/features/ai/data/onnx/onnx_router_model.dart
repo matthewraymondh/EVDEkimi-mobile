@@ -57,6 +57,10 @@ enum RouterIntent {
 
   /// Whether the local path can plausibly answer this without the cloud.
   ///
+  /// **Not currently consulted by `EngineRouter`.** Kept because it is the
+  /// right policy and the classification it needs is already computed — see the
+  /// note on that class for why wiring it is a real change rather than a line.
+  ///
   /// Greetings, thanks and history lookups are answerable from templates plus
   /// the user's own stored messages. Anything needing live inventory, a price,
   /// a calendar or legal advice is not, and must not be faked locally — a

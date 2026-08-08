@@ -54,10 +54,17 @@ class RoutingDecision {
 /// The policy, in order:
 ///
 /// 1. Honour the user's model choice when that engine is actually available.
-/// 2. If a cloud model was chosen but there is no network, fall back to
-///    on-device — but only when the on-device engine can serve it. It answers a
-///    narrow set of intents, and silently downgrading a code question to a
-///    canned refusal would be worse than queueing.
+/// 2. If a cloud model was chosen but the user has allowed the on-device
+///    fallback, use it. Note what this does *not* check: whether the local
+///    engine can actually answer *this* question. `RouterIntent
+///    .isLocallyAnswerable` exists for that and is not wired in — doing so
+///    means classifying the prompt here, which would duplicate work the engine
+///    already does and pull prompt content into a routing decision.
+///
+///    The consequence is visible and deliberate rather than hidden: a question
+///    the local model cannot serve gets an honest refusal naming the gap,
+///    instead of being queued for later delivery. Queuing it would be better,
+///    and is the first thing listed under "what I would do next".
 /// 3. If an on-device model was chosen but the runtime is broken, use the cloud.
 /// 4. Otherwise queue, and let the outbox deliver it later.
 ///

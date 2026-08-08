@@ -28,9 +28,12 @@ class ConversationListScreen extends ConsumerWidget {
           _GreetingHeader(
             name: user?.friendlyName,
             initials: user?.initials ?? '?',
-            onOpenSettings: () => context.push(AppRoutes.settings),
+            // `go`, not `push`: these are tabs in the shell, so switching
+            // branches is correct — pushing would stack a second copy on top of
+            // the tab that already exists.
+            onOpenSettings: () => context.go(AppRoutes.settings),
           ),
-          _SearchPrompt(onTap: () => context.push(AppRoutes.search)),
+          _SearchPrompt(onTap: () => context.go(AppRoutes.search)),
           Expanded(
             child: conversationsAsync.when(
               loading: () => const SkeletonList(),
@@ -49,54 +52,51 @@ class ConversationListScreen extends ConsumerWidget {
                           'Start a chat. Everything is saved on this device and '
                           'keeps working offline.',
                       actionLabel: 'New chat',
-                      onAction: () => _startConversation(context, ref),
+                      onAction: () => startNewConversation(context, ref),
                     )
                   : _ConversationList(conversations: conversations),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _startConversation(context, ref),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New chat'),
-      ),
+      // No FloatingActionButton: the shell's navigation bar owns the primary
+      // action, and two "new chat" affordances on one screen is one too many.
     );
   }
+}
 
-  /// Creates a thread and opens it.
-  ///
-  /// The model comes from settings, falling back to the on-device model when the
-  /// device is offline and the user has allowed that — so a new chat started on a
-  /// plane is immediately usable rather than dead.
-  static Future<void> _startConversation(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final settings = ref.read(settingsControllerProvider);
-    final isOnline = ref.read(isOnlineProvider);
-    final onDeviceReady = await ref.read(onDeviceAvailableProvider.future);
+/// Creates a thread and opens it.
+///
+/// Top-level rather than private to the screen because the shell's navigation
+/// bar is the primary entry point for it, and the empty state is a secondary one.
+///
+/// The model comes from settings, falling back to the on-device model when the
+/// device is offline and the user has allowed that — so a new chat started on a
+/// plane is immediately usable rather than dead.
+Future<void> startNewConversation(BuildContext context, WidgetRef ref) async {
+  final settings = ref.read(settingsControllerProvider);
+  final isOnline = ref.read(isOnlineProvider);
+  final onDeviceReady = await ref.read(onDeviceAvailableProvider.future);
 
-    final useOnDevice =
-        settings.preferredEngine.isOnDevice ||
-        (!isOnline && settings.useOnDeviceWhenOffline && onDeviceReady);
+  final useOnDevice =
+      settings.preferredEngine.isOnDevice ||
+      (!isOnline && settings.useOnDeviceWhenOffline && onDeviceReady);
 
-    final result = await ref
-        .read(conversationRepositoryProvider)
-        .createConversation(
-          modelId: useOnDevice
-              ? KnownModels.onDeviceRouter
-              : settings.selectedModelId,
-          engine: useOnDevice ? EngineKind.onDevice : EngineKind.remote,
-        );
+  final result = await ref
+      .read(conversationRepositoryProvider)
+      .createConversation(
+        modelId: useOnDevice
+            ? KnownModels.onDeviceRouter
+            : settings.selectedModelId,
+        engine: useOnDevice ? EngineKind.onDevice : EngineKind.remote,
+      );
 
-    if (!context.mounted) return;
-    result.fold(
-      ok: (conversation) => context.push(AppRoutes.chatPath(conversation.id)),
-      err: (failure) =>
-          showAppSnackBar(context, failure.userMessage, isError: true),
-    );
-  }
+  if (!context.mounted) return;
+  result.fold(
+    ok: (conversation) => context.push(AppRoutes.chatPath(conversation.id)),
+    err: (failure) =>
+        showAppSnackBar(context, failure.userMessage, isError: true),
+  );
 }
 
 /// Time-aware greeting with the user's avatar.

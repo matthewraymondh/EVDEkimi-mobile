@@ -141,7 +141,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+      // Bottom room for the floating navigation bar, which overlaps content.
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        0,
+        AppSpacing.gutter,
+        AppSpacing.xxxl * 2,
+      ),
       itemCount: _hits.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {

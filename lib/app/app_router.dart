@@ -1,3 +1,4 @@
+import 'package:evdekimi_ai/app/home_shell.dart';
 import 'package:evdekimi_ai/app/routes.dart';
 import 'package:evdekimi_ai/di/providers.dart';
 import 'package:evdekimi_ai/features/auth/presentation/sign_in_screen.dart';
@@ -61,30 +62,53 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.signIn,
         builder: (context, state) => const SignInScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.conversations,
-        builder: (context, state) => const ConversationListScreen(),
-        routes: [
-          GoRoute(
-            path: ':${AppRoutes.conversationIdParam}',
-            builder: (context, state) => ChatScreen(
-              conversationId:
-                  state.pathParameters[AppRoutes.conversationIdParam]!,
-            ),
+      // The three tabs live in an indexed stack, so each keeps its own
+      // navigation history and scroll position across switches.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            HomeShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.conversations,
+                builder: (context, state) => const ConversationListScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.search,
+                builder: (context, state) => const SearchScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                builder: (context, state) => const SettingsScreen(),
+                routes: [
+                  // Nested, so the log console keeps the Settings tab selected.
+                  GoRoute(
+                    path: 'logs',
+                    builder: (context, state) => const LogConsoleScreen(),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
+
+      // Outside the shell on purpose: a transcript is a focused, full-screen
+      // task, and it should cover the navigation bar rather than sit above it.
       GoRoute(
-        path: AppRoutes.search,
-        builder: (context, state) => const SearchScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (context, state) => const SettingsScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.logs,
-        builder: (context, state) => const LogConsoleScreen(),
+        path: AppRoutes.chat,
+        builder: (context, state) => ChatScreen(
+          conversationId: state.pathParameters[AppRoutes.conversationIdParam]!,
+        ),
       ),
     ],
     errorBuilder: (context, state) =>

@@ -178,7 +178,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
             onTap: () => _confirmSignOut(context, ref),
           ),
-          const SizedBox(height: AppSpacing.xxl),
+          // Bottom room for the floating navigation bar, which overlaps content.
+          const SizedBox(height: AppSpacing.xxxl * 2),
         ],
       ),
     );

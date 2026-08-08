@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
+import 'package:evdekimi_ai/design_system/glass.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/design_system/widgets/app_widgets.dart';
 import 'package:evdekimi_ai/di/providers.dart';
@@ -193,96 +194,102 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
           AppSpacing.md,
           AppSpacing.md,
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: chat.composerBackground,
-            borderRadius: AppRadius.allXl,
-            border: Border.all(color: chat.composerBorder),
-          ),
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          child: Column(
-            children: [
-              if (composer.hasAttachments)
-                _AttachmentTray(conversationId: widget.conversationId),
+        child: GlassSurface(
+          cornerRadius: 28,
+          fallbackColor: chat.composerBackground,
+          shadows: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xs),
+            child: Column(
+              children: [
+                if (composer.hasAttachments)
+                  _AttachmentTray(conversationId: widget.conversationId),
 
-              if (isListening)
-                _DictationIndicator(level: speech?.soundLevel ?? 0),
+                if (isListening)
+                  _DictationIndicator(level: speech?.soundLevel ?? 0),
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  IconButton(
-                    onPressed: composer.isAttaching ? null : _showAttachSheet,
-                    tooltip: 'Attach an image',
-                    icon: composer.isAttaching
-                        ? const SizedBox.square(
-                            dimension: AppSizes.iconSm,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.add_photo_alternate_outlined),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: composer.isAttaching ? null : _showAttachSheet,
+                      tooltip: 'Attach an image',
+                      icon: composer.isAttaching
+                          ? const SizedBox.square(
+                              dimension: AppSizes.iconSm,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_photo_alternate_outlined),
+                    ),
 
-                  Expanded(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxHeight: AppSizes.composerMaxHeight,
-                      ),
-                      child: TextField(
-                        controller: _textController,
-                        focusNode: _focusNode,
-                        maxLines: null,
-                        minLines: 1,
-                        textInputAction: settings.sendOnEnter
-                            ? TextInputAction.send
-                            : TextInputAction.newline,
-                        keyboardType: TextInputType.multiline,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
-                          hintText: 'Message EVDEkimi…',
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          filled: false,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.md,
-                          ),
+                    Expanded(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxHeight: AppSizes.composerMaxHeight,
                         ),
-                        onSubmitted: settings.sendOnEnter
-                            ? (_) {
-                                if (_canSend) _send();
-                              }
-                            : null,
+                        child: TextField(
+                          controller: _textController,
+                          focusNode: _focusNode,
+                          maxLines: null,
+                          minLines: 1,
+                          textInputAction: settings.sendOnEnter
+                              ? TextInputAction.send
+                              : TextInputAction.newline,
+                          keyboardType: TextInputType.multiline,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            hintText: 'Message EVDEkimi…',
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.md,
+                            ),
+                          ),
+                          onSubmitted: settings.sendOnEnter
+                              ? (_) {
+                                  if (_canSend) _send();
+                                }
+                              : null,
+                        ),
                       ),
                     ),
-                  ),
 
-                  IconButton(
-                    onPressed: _toggleDictation,
-                    tooltip: isListening ? 'Stop dictation' : 'Dictate',
-                    isSelected: isListening,
-                    icon: Icon(
-                      isListening ? Icons.mic : Icons.mic_none_rounded,
-                      color: isListening ? chat.danger : null,
+                    IconButton(
+                      onPressed: _toggleDictation,
+                      tooltip: isListening ? 'Stop dictation' : 'Dictate',
+                      isSelected: isListening,
+                      icon: Icon(
+                        isListening ? Icons.mic : Icons.mic_none_rounded,
+                        color: isListening ? chat.danger : null,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(width: AppSpacing.xs),
-                  _SendButton(
-                    isGenerating: widget.isGenerating,
-                    isEnabled: _canSend || widget.isGenerating,
-                    onSend: _send,
-                    onStop: () => ref
-                        .read(
-                          chatControllerProvider(
-                            widget.conversationId,
-                          ).notifier,
-                        )
-                        .stop(),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: AppSpacing.xs),
+                    _SendButton(
+                      isGenerating: widget.isGenerating,
+                      isEnabled: _canSend || widget.isGenerating,
+                      onSend: _send,
+                      onStop: () => ref
+                          .read(
+                            chatControllerProvider(
+                              widget.conversationId,
+                            ).notifier,
+                          )
+                          .stop(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

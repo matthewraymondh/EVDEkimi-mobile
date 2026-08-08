@@ -12,6 +12,7 @@ class AppSettings extends Equatable {
     this.useOnDeviceWhenOffline = true,
     this.hapticsEnabled = true,
     this.sendOnEnter = false,
+    this.liquidGlass = true,
   });
 
   final ThemeMode themeMode;
@@ -28,6 +29,13 @@ class AppSettings extends Equatable {
   /// Hardware-keyboard behaviour: Enter sends, or Enter inserts a newline.
   final bool sendOnEnter;
 
+  /// Refractive glass on the floating chrome.
+  ///
+  /// Exposed because it is a legibility trade, not just a taste one: glass
+  /// lowers contrast between chrome and whatever scrolls behind it. The
+  /// platform's high-contrast setting overrides this independently.
+  final bool liquidGlass;
+
   AppSettings copyWith({
     ThemeMode? themeMode,
     String? selectedModelId,
@@ -35,6 +43,7 @@ class AppSettings extends Equatable {
     bool? useOnDeviceWhenOffline,
     bool? hapticsEnabled,
     bool? sendOnEnter,
+    bool? liquidGlass,
   }) => AppSettings(
     themeMode: themeMode ?? this.themeMode,
     selectedModelId: selectedModelId ?? this.selectedModelId,
@@ -43,6 +52,7 @@ class AppSettings extends Equatable {
         useOnDeviceWhenOffline ?? this.useOnDeviceWhenOffline,
     hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
     sendOnEnter: sendOnEnter ?? this.sendOnEnter,
+    liquidGlass: liquidGlass ?? this.liquidGlass,
   );
 
   @override
@@ -53,6 +63,7 @@ class AppSettings extends Equatable {
     useOnDeviceWhenOffline,
     hapticsEnabled,
     sendOnEnter,
+    liquidGlass,
   ];
 }
 
@@ -83,6 +94,8 @@ class SettingsRepository {
           defaults.hapticsEnabled,
       sendOnEnter:
           _store.getBool(PreferenceKeys.sendOnEnter) ?? defaults.sendOnEnter,
+      liquidGlass:
+          _store.getBool(PreferenceKeys.liquidGlass) ?? defaults.liquidGlass,
     );
   }
 
@@ -107,6 +120,10 @@ class SettingsRepository {
     await _store.setBool(
       PreferenceKeys.sendOnEnter,
       value: settings.sendOnEnter,
+    );
+    await _store.setBool(
+      PreferenceKeys.liquidGlass,
+      value: settings.liquidGlass,
     );
   }
 

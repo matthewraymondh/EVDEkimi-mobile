@@ -1,5 +1,6 @@
 import 'package:evdekimi_ai/app/app_router.dart';
 import 'package:evdekimi_ai/design_system/app_theme.dart';
+import 'package:evdekimi_ai/design_system/glass.dart';
 import 'package:evdekimi_ai/di/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +12,8 @@ class EvdekimiApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(settingsControllerProvider).themeMode;
+    final settings = ref.watch(settingsControllerProvider);
+    final themeMode = settings.themeMode;
 
     // Reading this here starts the outbox coordinator for the app's lifetime, so
     // queued messages are delivered regardless of which screen is on top.
@@ -55,7 +57,12 @@ class EvdekimiApp extends ConsumerWidget {
                   ),
           child: MediaQuery(
             data: mediaQuery.copyWith(textScaler: clamped),
-            child: child ?? const SizedBox.shrink(),
+            // Installed above the router so every screen — including ones
+            // pushed over the shell — resolves glass the same way.
+            child: GlassScope(
+              isEnabled: settings.liquidGlass,
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         );
       },

@@ -1,4 +1,5 @@
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
+import 'package:evdekimi_ai/design_system/glass.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/di/providers.dart';
 import 'package:evdekimi_ai/features/chat/presentation/conversation_list_screen.dart';
@@ -23,7 +24,9 @@ class HomeShell extends ConsumerWidget {
       // The bar floats over the content rather than displacing it, so a list can
       // scroll beneath it. Screens add bottom padding for the overlap.
       extendBody: true,
-      body: navigationShell,
+      // The wash that gives the glass chrome something to refract. Without it a
+      // refractive bar over a flat fill bends nothing and just looks murky.
+      body: AppBackdrop(child: navigationShell),
       bottomNavigationBar: _FloatingNavBar(
         currentIndex: navigationShell.currentIndex,
         onSelect: (index) => navigationShell.goBranch(
@@ -72,17 +75,17 @@ class _FloatingNavBar extends ConsumerWidget {
           AppSpacing.xl,
           AppSpacing.md,
         ),
-        child: Container(
+        child: SizedBox(
           height: 68,
-          decoration: BoxDecoration(
-            color: context.colors.surfaceContainerLowest,
-            borderRadius: AppRadius.allPill,
-            border: Border.all(color: context.colors.outlineVariant),
+          child: GlassSurface(
+            // Half the height, so the continuous-corner shape resolves to a
+            // true capsule rather than a rounded rectangle.
+            cornerRadius: 34,
             // Two shadows, not one. A single wide blur reads as fog; a tight
             // contact shadow plus a wide ambient one is how a real object sits
             // above a surface. This is the only elevated element in the app, so
             // it is the one place the cost is justified.
-            boxShadow: [
+            shadows: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 4,
@@ -94,32 +97,32 @@ class _FloatingNavBar extends ConsumerWidget {
                 offset: const Offset(0, 12),
               ),
             ],
-          ),
-          // Three equal slots, so the action lands at exactly 50% and the lift
-          // reads as deliberate rather than as a button that drifted.
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _NavItem(
-                icon: Icons.forum_outlined,
-                activeIcon: Icons.forum_rounded,
-                label: 'Chats',
-                isActive: currentIndex == 0,
-                badgeCount: pending,
-                onTap: () => onSelect(0),
-              ),
-              Transform.translate(
-                offset: const Offset(0, -_actionLift),
-                child: _NewChatButton(onTap: onNewChat),
-              ),
-              _NavItem(
-                icon: Icons.settings_outlined,
-                activeIcon: Icons.settings_rounded,
-                label: 'Settings',
-                isActive: currentIndex == 1,
-                onTap: () => onSelect(1),
-              ),
-            ],
+            // Three equal slots, so the action lands at exactly 50% and the
+            // lift reads as deliberate rather than as a button that drifted.
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _NavItem(
+                  icon: Icons.forum_outlined,
+                  activeIcon: Icons.forum_rounded,
+                  label: 'Chats',
+                  isActive: currentIndex == 0,
+                  badgeCount: pending,
+                  onTap: () => onSelect(0),
+                ),
+                Transform.translate(
+                  offset: const Offset(0, -_actionLift),
+                  child: _NewChatButton(onTap: onNewChat),
+                ),
+                _NavItem(
+                  icon: Icons.settings_outlined,
+                  activeIcon: Icons.settings_rounded,
+                  label: 'Settings',
+                  isActive: currentIndex == 1,
+                  onTap: () => onSelect(1),
+                ),
+              ],
+            ),
           ),
         ),
       ),

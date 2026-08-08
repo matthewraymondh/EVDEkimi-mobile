@@ -370,6 +370,9 @@ class SettingsController extends Notifier<AppSettings> {
 
   Future<void> setSendOnEnter({required bool value}) =>
       _update(state.copyWith(sendOnEnter: value));
+
+  Future<void> setLiquidGlass({required bool value}) =>
+      _update(state.copyWith(liquidGlass: value));
 }
 
 final settingsControllerProvider =

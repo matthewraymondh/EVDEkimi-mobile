@@ -132,5 +132,6 @@ abstract final class PreferenceKeys {
   static const String smartRouting = 'settings.smartRouting';
   static const String hapticsEnabled = 'settings.haptics';
   static const String sendOnEnter = 'settings.sendOnEnter';
+  static const String liquidGlass = 'settings.liquidGlass';
   static const String hasSeenOnboarding = 'app.hasSeenOnboarding';
 }

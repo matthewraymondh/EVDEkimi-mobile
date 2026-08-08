@@ -55,6 +55,21 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
 
+          SwitchListTile(
+            value: settings.liquidGlass,
+            onChanged: (value) => controller.setLiquidGlass(value: value),
+            title: const Text('Liquid glass'),
+            subtitle: Text(
+              MediaQuery.highContrastOf(context)
+                  ? 'Disabled by your system high-contrast setting.'
+                  : 'Refractive chrome over your content. Turn off for maximum '
+                        'text contrast.',
+            ),
+            // The OS accessibility preference outranks the app's, so reflect
+            // that rather than offering a switch that silently does nothing.
+            secondary: const Icon(Icons.blur_on_rounded),
+          ),
+
           const _SectionHeader('On-device AI'),
           onDeviceAsync.when(
             loading: () => const ListTile(

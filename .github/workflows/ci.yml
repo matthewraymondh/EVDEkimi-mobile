@@ -81,19 +81,26 @@ jobs:
       - run: pip install onnx==1.22.0 numpy==2.3.4 onnxruntime==1.28.0
       - run: flutter pub get
 
-      # Retrain from scratch and confirm the committed model and fixture are
-      # reproducible. Training is seeded, so a byte-identical model is expected;
-      # a diff here means someone edited an asset by hand.
+      # Retrain from scratch and confirm the committed artefacts still describe
+      # the same model. Deliberately *not* a byte comparison — see the module
+      # docstring in verify_model_parity.py. Retraining on a different machine
+      # reproduces the graph exactly and the weights only to within float noise,
+      # because numpy's matmul reduction order depends on the BLAS kernel the
+      # platform provides. Demanding identical bytes made this job permanently
+      # red while telling us nothing about the model.
+      - name: Snapshot the committed fixture
+        run: cp test/fixtures/onnx_router_golden.json /tmp/committed-golden.json
+
       - name: Retrain the on-device model
         run: python tools/train_router_model.py
 
-      - name: Fail if the committed model is not reproducible
-        run: |
-          if ! git diff --quiet -- assets/models test/fixtures; then
-            echo "::error::Regenerating the model produced a different artefact."
-            git diff --stat -- assets/models test/fixtures
-            exit 1
-          fi
+      - name: Fail if retraining changed what the model does
+        run: python tools/verify_model_parity.py /tmp/committed-golden.json test/fixtures/onnx_router_golden.json
+
+      # Restore before the parity test, so it runs against the artefacts that
+      # actually ship rather than the ones this job just produced.
+      - name: Restore the committed artefacts
+        run: git checkout -- assets/models test/fixtures
 
       # The parity test is what stops the Dart feature extractor drifting from
       # the Python reference the model was trained on.

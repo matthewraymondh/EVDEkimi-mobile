@@ -80,8 +80,14 @@ class AuthController extends Notifier<AuthFormState> {
 
     return result.fold(
       ok: (_) {
-        // Leave isSubmitting true: the router is about to replace this screen,
-        // and flipping the button back to enabled first would flash.
+        // Left submitting on purpose: the router is about to replace this
+        // screen, and flipping the button back to enabled first would flash.
+        //
+        // That is only safe because this provider auto-disposes. Held for the
+        // app's lifetime it never clears, and the next time the sign-in screen
+        // appears — after a sign-out — the button is a spinner that can never
+        // stop, so the user cannot sign back in at all without killing the app.
+        // The two decisions are one decision; changing either alone is a bug.
         return true;
       },
       err: (failure) {
@@ -101,10 +107,16 @@ class AuthController extends Notifier<AuthFormState> {
       },
     );
   }
-
-  Future<void> signOut() => ref.read(authRepositoryProvider).signOut();
 }
 
+/// Auto-disposing, and that is load-bearing rather than tidiness.
+///
+/// This holds *form* state — what is typed, what is in flight, which errors are
+/// showing. None of it means anything once the form is gone, and keeping it
+/// alive is what let a successful sign-in leave `isSubmitting: true` behind
+/// where the *next* sign-in screen would find it and render a button that spins
+/// forever. See the note in `submit`.
 final authControllerProvider = NotifierProvider<AuthController, AuthFormState>(
   AuthController.new,
+  isAutoDispose: true,
 );

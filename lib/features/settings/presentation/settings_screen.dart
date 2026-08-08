@@ -4,7 +4,6 @@ import 'package:evdekimi_ai/design_system/glass.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/design_system/widgets/app_widgets.dart';
 import 'package:evdekimi_ai/di/providers.dart';
-import 'package:evdekimi_ai/features/auth/presentation/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -235,8 +234,12 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (confirmed != true) return;
+    // Straight to the repository rather than through the sign-in form's
+    // controller. That controller is auto-disposing form state, and reaching
+    // into it from another screen would build one purely to call a passthrough
+    // — creating the very object whose lifetime this screen must not extend.
     // The router's guard sends the user to sign-in once the session clears.
-    await ref.read(authControllerProvider.notifier).signOut();
+    await ref.read(authRepositoryProvider).signOut();
   }
 }
 

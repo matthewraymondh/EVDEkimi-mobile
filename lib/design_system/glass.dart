@@ -131,7 +131,12 @@ class AppBackdrop extends StatelessWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = context.colors.primary;
-    final accent = context.chatTheme.onDeviceAccent;
+    // Both blooms are brand tones. The second one used the on-device accent,
+    // which was a quiet way of spending the app's only signal colour on
+    // decoration — and now that the accent is a saturated periwinkle rather
+    // than a muted brass, a screen-height wash of it would read as the loudest
+    // thing in the app while meaning nothing.
+    final secondary = context.colors.primaryContainer;
 
     return Stack(
       children: [
@@ -148,7 +153,11 @@ class AppBackdrop extends StatelessWidget {
                 center: const Alignment(-0.75, -0.35),
                 radius: 1.3,
                 colors: [
-                  primary.withValues(alpha: isDark ? 0.26 : 0.20),
+                  // Lower than it was in dark mode. The page is now a saturated
+                  // indigo rather than a near-black, so it already carries the
+                  // colour the bloom used to have to supply — the bloom only
+                  // has to give the glass a gradient to bend.
+                  primary.withValues(alpha: isDark ? 0.16 : 0.20),
                   Colors.transparent,
                 ],
               ),
@@ -162,7 +171,7 @@ class AppBackdrop extends StatelessWidget {
                 center: const Alignment(0.9, 0.7),
                 radius: 1.2,
                 colors: [
-                  accent.withValues(alpha: isDark ? 0.22 : 0.16),
+                  secondary.withValues(alpha: isDark ? 0.20 : 0.16),
                   Colors.transparent,
                 ],
               ),

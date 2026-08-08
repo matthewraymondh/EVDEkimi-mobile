@@ -40,20 +40,20 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // The user's own messages carry the brand colour: it is the one element on
     // screen that should feel like "you", and it anchors the eye when scanning.
     outgoingBubble: AppPalette.brandNavy,
-    onOutgoingBubble: AppPalette.white,
+    onOutgoingBubble: AppPalette.ink50,
     // Assistant messages are white on the canvas rather than a tinted fill.
     // Model output is long-form text and needs to read like a document page.
     incomingBubble: AppPalette.white,
     onIncomingBubble: AppPalette.ink900,
     bubbleBorder: AppPalette.ink100,
     caret: AppPalette.brandNavy,
-    codeBackground: AppPalette.ink800,
+    codeBackground: AppPalette.ink900,
     codeBorder: AppPalette.ink700,
     inlineCodeBackground: AppPalette.ink100,
     composerBackground: AppPalette.white,
     composerBorder: AppPalette.ink200,
-    onDeviceAccent: AppPalette.brandBrass,
-    offlineBanner: AppPalette.ink700,
+    onDeviceAccent: AppPalette.beaconLight,
+    offlineBanner: AppPalette.ink800,
     onOfflineBanner: AppPalette.ink50,
     success: AppPalette.successLight,
     warning: AppPalette.warningLight,
@@ -74,20 +74,25 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // Dark mode inverts the emphasis: a saturated fill at full brightness is
     // fatiguing, so the outgoing bubble uses a deep brand tone with a bright
     // foreground instead.
-    outgoingBubble: AppPalette.brandNavyDeep,
-    onOutgoingBubble: AppPalette.ink100,
+    // The outgoing bubble has to clear both the page and the incoming bubble,
+    // and the page is already the deepest tone in the ramp — so it lifts rather
+    // than deepens, which is the opposite of what light mode does.
+    outgoingBubble: AppPalette.ink600,
+    onOutgoingBubble: AppPalette.ink50,
     incomingBubble: AppPalette.ink800,
-    onIncomingBubble: AppPalette.ink100,
+    onIncomingBubble: AppPalette.ink50,
     bubbleBorder: AppPalette.ink700,
     caret: AppPalette.brandNavyLifted,
-    codeBackground: AppPalette.ink900,
+    // Below the page, not above it: a code block is a well, and ink950 is the
+    // one tone in the ramp that sits under ink900.
+    codeBackground: AppPalette.ink950,
     codeBorder: AppPalette.ink700,
     inlineCodeBackground: AppPalette.ink700,
     composerBackground: AppPalette.ink800,
     composerBorder: AppPalette.ink600,
-    onDeviceAccent: AppPalette.warningDark,
-    offlineBanner: AppPalette.ink600,
-    onOfflineBanner: AppPalette.ink100,
+    onDeviceAccent: AppPalette.beaconDark,
+    offlineBanner: AppPalette.ink700,
+    onOfflineBanner: AppPalette.ink50,
     success: AppPalette.successDark,
     warning: AppPalette.warningDark,
     danger: AppPalette.dangerDark,

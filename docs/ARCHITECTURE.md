@@ -314,10 +314,42 @@ concepts, not Material roles. Putting them there rather than reaching for
 render a colour that only works in one theme. A widget test renders the transcript
 in both themes to keep that true.
 
-The colour scheme is seeded from the brand teal, then a handful of surface roles
-are overridden by hand. That override is the point: `ColorScheme.fromSeed` in dark
-mode produces surfaces with a violet cast that fights a teal brand, and a chat app
-is mostly surface.
+**The palette is four values on one hue axis**, and the design follows from
+taking that literally:
+
+| | | |
+|---|---|---|
+| `#0F044C` | deep indigo | dark page · light-mode text |
+| `#141E61` | navy | the brand · every raised surface in dark mode |
+| `#787A91` | slate | borders and tertiary marks |
+| `#EEEEEE` | mist | light page · dark-mode text |
+
+It is a value ramp, not a colour scheme — no accent, no second hue — so
+hierarchy is carried by lightness alone and the ramp desaturates as it lightens.
+The scheme is still seeded from the brand navy so Material's generated roles stay
+related, then the roles that carry the design are overridden by hand; a chat app
+is mostly surface, and `fromSeed` spreads a tonal palette across those surfaces
+that does not match the four values the brand is built from.
+
+Three consequences worth naming:
+
+- **Elevation is the two navies.** In dark mode the page is `#0F044C` and
+  anything raised is `#141E61`, which replaces shadows, borders and Material's
+  elevation overlays. This also fixed a real bug: cards used
+  `surfaceContainerLowest`, which in Material's *dark* ramp is the darkest tone
+  in the set and resolved to exactly the scaffold colour — the card structure
+  rendered correctly in light mode and was invisible in dark.
+- **One saturated colour, `beacon`, reserved for the on-device signal.** A
+  single-hue ramp cannot mark anything: slate on a card is indistinguishable from
+  ordinary secondary text. Rather than introduce a second hue, `beacon` spikes
+  the saturation of the hue already present, so the app stays one colour end to
+  end. It appears on the on-device badge and nowhere else.
+- **Derived steps exist to clear contrast, not to decorate.** `#787A91` on
+  `#EEEEEE` is 3.63:1 — comfortably readable-looking, and under the 4.5:1 floor
+  for body copy, which is the role that sets every excerpt and caption in the
+  app. `test/design_system/palette_contrast_test.dart` asserts a floor for all 28
+  foreground/background pairs the app actually paints, in both themes, and fails
+  on exactly that substitution.
 
 **Typography uses the platform font deliberately.** A bundled webfont means a
 larger download and a runtime fetch that fails offline — unacceptable in an app

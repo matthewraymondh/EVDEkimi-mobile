@@ -7,12 +7,17 @@ import 'package:flutter/services.dart';
 
 /// Builds the light and dark themes.
 ///
-/// The colour scheme is seeded from the brand teal so all tonal roles stay
-/// harmonically related, then a small number of surface roles are overridden by
-/// hand. That override is the point: `ColorScheme.fromSeed` in dark mode
-/// produces surfaces with a violet cast that fights a navy brand, and a chat app
-/// is mostly surface. Everything else is left to Material so future component
-/// themes inherit sensible defaults.
+/// Seeded from the brand navy so every tonal role Material generates stays
+/// harmonically related, then the roles that carry the design are overridden by
+/// hand. The overrides are the point: a chat app is mostly surface, and
+/// `ColorScheme.fromSeed` spreads a generated tonal palette across those
+/// surfaces that does not match the four values the brand is actually built
+/// from. Everything not listed is left to Material, so component themes added
+/// later still inherit sensible defaults.
+///
+/// The surface roles below are ordered by elevation in both schemes, which is
+/// the part worth checking against `AppPalette`: in dark mode they climb from
+/// `#0F044C` to `#141E61`, and in light they climb from `#EEEEEE` to white.
 abstract final class AppTheme {
   static ThemeData light() => _build(_lightScheme, ChatTheme.light);
 
@@ -29,11 +34,15 @@ abstract final class AppTheme {
         surface: AppPalette.canvas,
         surfaceContainerLowest: AppPalette.white,
         surfaceContainerLow: AppPalette.white,
-        surfaceContainer: AppPalette.ink50,
-        surfaceContainerHigh: AppPalette.ink100,
+        surfaceContainer: AppPalette.ink100,
+        surfaceContainerHigh: AppPalette.ink200,
         onSurface: AppPalette.ink900,
-        onSurfaceVariant: AppPalette.ink400,
-        outlineVariant: AppPalette.ink100,
+        // ink400 is the palette's own slate, but it lands at 3.7:1 on the
+        // canvas — under the floor for body copy, and this role sets every
+        // secondary line in the app. One step darker clears it.
+        onSurfaceVariant: AppPalette.ink500,
+        outline: AppPalette.ink400,
+        outlineVariant: AppPalette.ink200,
         primary: AppPalette.brandNavy,
         onPrimary: AppPalette.white,
         error: AppPalette.dangerLight,
@@ -44,19 +53,19 @@ abstract final class AppTheme {
         seedColor: AppPalette.brandNavy,
         brightness: Brightness.dark,
       ).copyWith(
-        // A near-black base rather than Material's elevated grey. Chat is a
-        // reading surface; lower luminance reduces halation around light text
-        // and makes the teal accents carry the hierarchy instead of boxes.
+        // The brand's own two navies, used as the elevation system: the page is
+        // the deeper one and everything raised is the lighter one. No overlays,
+        // no shadows, no borders needed to separate them.
         surface: AppPalette.ink900,
-        surfaceContainerLowest: AppPalette.ink900,
+        surfaceContainerLowest: AppPalette.ink950,
         surfaceContainerLow: AppPalette.ink800,
         surfaceContainer: AppPalette.ink800,
         surfaceContainerHigh: AppPalette.ink700,
         surfaceContainerHighest: AppPalette.ink600,
-        onSurface: AppPalette.ink100,
+        onSurface: AppPalette.ink50,
         onSurfaceVariant: AppPalette.ink300,
         outline: AppPalette.ink500,
-        outlineVariant: AppPalette.ink600,
+        outlineVariant: AppPalette.ink700,
         primary: AppPalette.brandNavyLifted,
         onPrimary: AppPalette.brandNavyDeep,
         error: AppPalette.dangerDark,

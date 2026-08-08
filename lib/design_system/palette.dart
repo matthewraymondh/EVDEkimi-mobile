@@ -1,72 +1,122 @@
 import 'package:flutter/material.dart';
 
-/// Raw brand colours, taken from the EVDEkimi mark.
+/// Raw colour values. The only literal colours in the app.
 ///
-/// These are the only literal colours in the app; everything else reads from
-/// `ColorScheme` or `ChatTheme`. Keeping the literals in one file is what makes
-/// it possible to answer "is this on-brand?" by reading a single screen of code.
+/// Everything else reads from `ColorScheme` or `ChatTheme`, which is what makes
+/// it possible to answer "is this on-brand?" by reading one screen of code.
 ///
-/// The identity is a white geometric roofline on deep navy — a property brand,
-/// not a tech one. Two consequences follow:
+/// ## The system
 ///
-/// * **Navy is the primary, and it is dark.** Filled buttons and outgoing
-///   message bubbles are near-black navy with white text. That reads as
-///   considered and premium, which is the register real estate sells in; a
-///   bright saturated primary would read as a consumer app.
-/// * **The neutral ramp is navy-tinted, not neutral grey.** Greys mixed toward
-///   the brand hue keep large surfaces feeling related to the mark instead of
-///   merely adjacent to it.
+/// Four values are fixed, and the rest of the file exists to serve them:
+///
+/// | | | |
+/// |---|---|---|
+/// | `#0F044C` | deep indigo | [ink900] |
+/// | `#141E61` | navy | [ink800] |
+/// | `#787A91` | slate | [ink400] |
+/// | `#EEEEEE` | mist | [ink50] |
+///
+/// They are four steps along **one hue axis** — a value ramp, not a colour
+/// scheme. There is no accent in it and no second hue, and the whole design
+/// follows from taking that seriously: hierarchy is carried by lightness alone,
+/// and the palette desaturates as it lightens, from saturated indigo at the
+/// bottom to plain grey at the top.
+///
+/// ## Elevation is the two navies
+///
+/// In dark mode `#0F044C` is the page and `#141E61` is anything raised above it.
+/// That single relationship replaces shadows, borders and Material's elevation
+/// overlays. It also fixes a real bug: cards previously used
+/// `surfaceContainerLowest`, which in Material's dark ramp is the *darkest* tone
+/// in the set and resolved to exactly the scaffold colour — the card structure
+/// rendered in light mode and was invisible in dark.
+///
+/// ## The one saturated colour
+///
+/// [beacon] is the sole exception, reserved for the on-device signal. A
+/// single-hue ramp has no capacity to mark anything: [ink400] on a card is
+/// indistinguishable from ordinary secondary text. Rather than introduce a
+/// second hue, [beacon] spikes the *saturation* of the hue already here, so the
+/// app stays one colour end to end. Spending it anywhere else would take the
+/// signal away from the only thing that needs one.
+///
+/// Status colours are deliberately outside all of this. An error cannot be
+/// rendered in navy, so they stay recognisable first and on-palette second.
 abstract final class AppPalette {
-  /// The mark's background. Primary brand colour.
-  static const Color brandNavy = Color(0xFF1B2A41);
+  // ------------------------------------------------------- the ramp
 
-  /// Lifted navy for dark mode, where the base navy would disappear into the
-  /// surface behind it. Still unmistakably the same hue.
-  static const Color brandNavyLifted = Color(0xFF5A7CA8);
+  /// Below the darkest given value, for wells that must recede *under* the
+  /// page — a code block on the dark theme, chiefly.
+  static const Color ink950 = Color(0xFF070120);
 
-  /// Deepest tone, for dark-mode fills that must sit under white text.
-  static const Color brandNavyDeep = Color(0xFF0C1421);
+  /// Deep indigo. Dark-mode page, light-mode text, deepest fills.
+  static const Color ink900 = Color(0xFF0F044C);
 
-  /// Warm brass. Used only where something must read as *distinct* from the
-  /// navy system — the on-device badge, a queued state. Never decoratively:
-  /// spending it dilutes the one accent the brand has.
-  static const Color brandBrass = Color(0xFFC08A2E);
+  /// Navy. The brand colour, and every raised surface in dark mode.
+  static const Color ink800 = Color(0xFF141E61);
 
-  /// Navy-tinted neutral ramp.
-  ///
-  /// Hand-tuned rather than generated: Material's neutral ramp carries a violet
-  /// cast from the seed, which fights a navy brand on the large surfaces that
-  /// make up most of a chat screen.
-  static const Color ink900 = Color(0xFF0B1220);
-  static const Color ink800 = Color(0xFF111C2E);
-  static const Color ink700 = Color(0xFF1B2739);
-  static const Color ink600 = Color(0xFF27364C);
-  static const Color ink500 = Color(0xFF3A4C68);
-  static const Color ink400 = Color(0xFF64748B);
-  static const Color ink300 = Color(0xFF94A3B8);
-  static const Color ink200 = Color(0xFFCBD5E1);
-  static const Color ink100 = Color(0xFFE2E8F0);
-  static const Color ink50 = Color(0xFFF1F5F9);
+  static const Color ink700 = Color(0xFF202B70);
+  static const Color ink600 = Color(0xFF3A4380);
+
+  /// Light-mode secondary text. [ink400] itself only reaches 3.7:1 on [ink50],
+  /// which is under the 4.5:1 floor for body copy; this clears it at 5.2:1.
+  static const Color ink500 = Color(0xFF5A5F87);
+
+  /// Slate. Borders, disabled states, and tertiary marks.
+  static const Color ink400 = Color(0xFF787A91);
+
+  /// Dark-mode secondary text, for the same reason [ink500] exists.
+  static const Color ink300 = Color(0xFF9EA0B2);
+
+  static const Color ink200 = Color(0xFFC6C7D1);
+  static const Color ink100 = Color(0xFFDFE0E6);
+
+  /// Mist. Light-mode page, dark-mode text.
+  static const Color ink50 = Color(0xFFEEEEEE);
+
   static const Color white = Color(0xFFFFFFFF);
+
+  // ------------------------------------------------------- brand roles
+
+  /// Filled buttons and outgoing message bubbles.
+  static const Color brandNavy = ink800;
+
+  /// Deepest brand tone, under light text.
+  static const Color brandNavyDeep = ink900;
+
+  /// Dark mode needs the brand *above* the page rather than below it, and
+  /// [brandNavy] on an [ink900] background is a 1.2:1 step — correct for a card,
+  /// far too quiet for a control. Same hue, lifted until it carries text.
+  static const Color brandNavyLifted = Color(0xFF8F98E8);
 
   /// Page background in light mode.
   ///
-  /// Deliberately not white. Cards and message bubbles are white, so the page
-  /// beneath them has to be a shade darker for them to read as raised surfaces —
-  /// white-on-white needs borders or shadows to separate, and both are heavier
-  /// than a two-percent tonal step.
-  static const Color canvas = Color(0xFFF4F6FA);
+  /// Not white, because cards are: the page has to sit a step below them for the
+  /// grouping to read without borders or shadows.
+  static const Color canvas = ink50;
 
-  /// Semantic status colours, defined for both themes so contrast holds.
-  static const Color successLight = Color(0xFF1E7A44);
-  static const Color successDark = Color(0xFF6EDBA0);
+  // ------------------------------------------------------- the signal
 
-  static const Color dangerLight = Color(0xFFB3261E);
-  static const Color dangerDark = Color(0xFFFF8A80);
+  /// The on-device marker, and nothing else.
+  ///
+  /// Same hue as the ramp, taken to full saturation. Two values because one
+  /// cannot clear contrast on both a near-white page and a deep indigo one.
+  static const Color beaconLight = Color(0xFF4A55D6);
+  static const Color beaconDark = Color(0xFF7C87FF);
+
+  // ------------------------------------------------------- status
+
+  /// Functional, not decorative. Tuned toward the ramp's coolness so they sit
+  /// with it, but never so far that a warning stops looking like a warning.
+  static const Color successLight = Color(0xFF16794D);
+  static const Color successDark = Color(0xFF5FD3A0);
+
+  static const Color dangerLight = Color(0xFFC42B32);
+  static const Color dangerDark = Color(0xFFFF8A93);
 
   static const Color warningLight = Color(0xFF8A5A00);
-  static const Color warningDark = Color(0xFFFFC46B);
+  static const Color warningDark = Color(0xFFF0B252);
 
-  static const Color infoLight = Color(0xFF00658F);
-  static const Color infoDark = Color(0xFF7FD1F5);
+  static const Color infoLight = Color(0xFF1B5FA8);
+  static const Color infoDark = Color(0xFF8FBEEE);
 }

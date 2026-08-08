@@ -82,22 +82,27 @@ abstract final class AppGlass {
             : AppPalette.white.withValues(alpha: 0.55),
       ),
       appearance: LiquidGlassAppearance(
-        // Tint carries the surface. Blur alone turns everything to grey soup;
-        // a light tint keeps the material feeling like the app's own colour.
+        // Tint and blur are both kept low, and that is the important part.
+        // Refraction is only visible through what it bends — heavy blur erases
+        // the very detail the distortion is meant to warp, so a strongly
+        // blurred pane reads as frosted plastic rather than glass. The first
+        // version had sigma 18 and an opaque tint, which is why it looked flat.
         color: isDark
-            ? AppPalette.ink800.withValues(alpha: 0.55)
-            : AppPalette.white.withValues(alpha: 0.62),
-        blur: const LiquidGlassBlur(sigmaX: 18, sigmaY: 18),
-        // Slightly above 1 so colours passing behind stay lively instead of
-        // washing out through the blur.
-        saturation: 1.25,
+            ? AppPalette.ink800.withValues(alpha: 0.34)
+            : AppPalette.white.withValues(alpha: 0.30),
+        blur: const LiquidGlassBlur(sigmaX: 6, sigmaY: 6),
+        // Above 1 so colours passing behind stay lively rather than washing out.
+        saturation: 1.35,
       ),
       refraction: const LiquidGlassRefraction(
-        distortion: 0.35,
-        magnification: 1.02,
-        // Chromatic aberration is the detail that separates real glass from a
-        // blur, but past a whisper it fringes text and looks broken.
-        chromaticAberration: 0.06,
+        // Strong enough to actually see the edge bend content, which is what
+        // makes it read as a lens. Still short of the funhouse setting that
+        // smears body text into illegibility.
+        distortion: 1.1,
+        magnification: 1.06,
+        // The detail that separates real glass from a blur. Concentrated at the
+        // rim by the shader, so it fringes the edge rather than the text.
+        chromaticAberration: 0.14,
       ),
     );
   }
@@ -184,7 +189,10 @@ class AppBackdrop extends StatelessWidget {
                 center: const Alignment(-0.8, -0.9),
                 radius: 1.4,
                 colors: [
-                  primary.withValues(alpha: isDark ? 0.16 : 0.10),
+                  // Strong enough to be worth refracting. A wash this subtle
+                  // gives the lens nothing to bend, which was half the reason
+                  // the first attempt looked like plain translucency.
+                  primary.withValues(alpha: isDark ? 0.30 : 0.22),
                   Colors.transparent,
                 ],
               ),
@@ -198,7 +206,7 @@ class AppBackdrop extends StatelessWidget {
                 center: const Alignment(0.9, 0.7),
                 radius: 1.2,
                 colors: [
-                  accent.withValues(alpha: isDark ? 0.10 : 0.07),
+                  accent.withValues(alpha: isDark ? 0.22 : 0.16),
                   Colors.transparent,
                 ],
               ),

@@ -47,6 +47,10 @@ class HomeShell extends ConsumerWidget {
 /// true centre, and lifting an off-centre element would look like a mistake.
 const double _actionLift = 12;
 
+/// Diameter of the primary action. Shared by the button and by the gap the bar
+/// reserves for it, so the two cannot drift apart.
+const double _actionSize = 52;
+
 /// A floating pill navigation bar with a raised primary action in the middle.
 class _FloatingNavBar extends ConsumerWidget {
   const _FloatingNavBar({
@@ -75,56 +79,73 @@ class _FloatingNavBar extends ConsumerWidget {
           AppSpacing.xl,
           AppSpacing.md,
         ),
+        // The raised action is a *sibling* of the glass panel, not its child.
+        // LiquidGlassLens clips its child to the lens shape, so a button lifted
+        // above the capsule was being sliced off at the rim. Keeping it outside
+        // the lens also stops the button refracting itself.
         child: SizedBox(
           height: 68,
-          child: GlassSurface(
-            // Half the height, so the continuous-corner shape resolves to a
-            // true capsule rather than a rounded rectangle.
-            cornerRadius: 34,
-            // Two shadows, not one. A single wide blur reads as fog; a tight
-            // contact shadow plus a wide ambient one is how a real object sits
-            // above a surface. This is the only elevated element in the app, so
-            // it is the one place the cost is justified.
-            shadows: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.07),
-                blurRadius: 28,
-                offset: const Offset(0, 12),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(child: _buildBar(context, pending)),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: -_actionLift,
+                child: Center(child: _NewChatButton(onTap: onNewChat)),
               ),
             ],
-            // Three equal slots, so the action lands at exactly 50% and the
-            // lift reads as deliberate rather than as a button that drifted.
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _NavItem(
-                  icon: Icons.forum_outlined,
-                  activeIcon: Icons.forum_rounded,
-                  label: 'Chats',
-                  isActive: currentIndex == 0,
-                  badgeCount: pending,
-                  onTap: () => onSelect(0),
-                ),
-                Transform.translate(
-                  offset: const Offset(0, -_actionLift),
-                  child: _NewChatButton(onTap: onNewChat),
-                ),
-                _NavItem(
-                  icon: Icons.settings_outlined,
-                  activeIcon: Icons.settings_rounded,
-                  label: 'Settings',
-                  isActive: currentIndex == 1,
-                  onTap: () => onSelect(1),
-                ),
-              ],
-            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBar(BuildContext context, int pending) {
+    return GlassSurface(
+      // Half the height, so the continuous-corner shape resolves to a
+      // true capsule rather than a rounded rectangle.
+      cornerRadius: 34,
+      // Two shadows, not one. A single wide blur reads as fog; a tight
+      // contact shadow plus a wide ambient one is how a real object sits
+      // above a surface. This is the only elevated element in the app, so
+      // it is the one place the cost is justified.
+      shadows: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.07),
+          blurRadius: 28,
+          offset: const Offset(0, 12),
+        ),
+      ],
+      // Three equal slots, so the middle one centres at exactly 50%. The middle
+      // slot is an empty box the width of the action, reserving the space the
+      // real button occupies as an overlay above.
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _NavItem(
+            icon: Icons.forum_outlined,
+            activeIcon: Icons.forum_rounded,
+            label: 'Chats',
+            isActive: currentIndex == 0,
+            badgeCount: pending,
+            onTap: () => onSelect(0),
+          ),
+          const SizedBox(width: _actionSize),
+          _NavItem(
+            icon: Icons.settings_outlined,
+            activeIcon: Icons.settings_rounded,
+            label: 'Settings',
+            isActive: currentIndex == 1,
+            onTap: () => onSelect(1),
+          ),
+        ],
       ),
     );
   }
@@ -278,8 +299,8 @@ class _NewChatButtonState extends State<_NewChatButton> {
             duration: AppDuration.instant,
             curve: AppCurve.standard,
             child: Container(
-              width: 52,
-              height: 52,
+              width: _actionSize,
+              height: _actionSize,
               decoration: BoxDecoration(
                 color: context.colors.primary,
                 shape: BoxShape.circle,

@@ -119,10 +119,10 @@ extractor to the Python reference.
 | Bonus | Status |
 |---|---|
 | Speech-to-text | Platform recogniser with live interim transcripts and a level meter |
-| OCR / camera | ML Kit text recognition, on-device, at attach time |
+| OCR / camera | ML Kit, on-device, at attach time — **and the local model answers from it with the network off**, quoting what it read and matching it against your own history. Three of these bonuses firing at once, offline. |
 | Image upload | Multipart upload with per-attachment retry state |
 | ONNX Runtime Mobile | **Real trained model**, bundled and executed via FFI |
-| CI/CD | GitHub Actions: analyze, test, Android + iOS builds |
+| CI/CD | GitHub Actions: analyze, test, ONNX reproducibility, Android + iOS builds |
 
 ---
 

@@ -36,7 +36,26 @@ void main() {
       // other silently sends users to the wrong tab.
       expect(
         AppRoutes.tabs,
-        equals([AppRoutes.conversations, AppRoutes.search, AppRoutes.settings]),
+        equals([AppRoutes.conversations, AppRoutes.settings]),
+      );
+    });
+
+    test('search is reachable but not a tab', () {
+      // It has a prominent entry point on the home screen already. Keeping it
+      // out of the bar is also what leaves an odd number of slots, so the
+      // primary action can sit at true centre.
+      expect(AppRoutes.tabs.contains(AppRoutes.search), isFalse);
+      expect(AppRoutes.search, equals('/search'));
+    });
+
+    test('an even number of destinations keeps the action centred', () {
+      // With two destinations the bar has three equal slots and the raised
+      // action lands at 50%. Adding a third destination would move it off
+      // centre and the lift would read as a mistake.
+      expect(
+        AppRoutes.tabs.length.isEven,
+        isTrue,
+        reason: 'the raised centre action assumes an even destination count',
       );
     });
 

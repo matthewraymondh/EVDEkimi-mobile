@@ -79,14 +79,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.search,
-                builder: (context, state) => const SearchScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
                 path: AppRoutes.settings,
                 builder: (context, state) => const SettingsScreen(),
                 routes: [
@@ -109,6 +101,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ChatScreen(
           conversationId: state.pathParameters[AppRoutes.conversationIdParam]!,
         ),
+      ),
+
+      // Search is pushed from the home screen rather than being a tab: it is
+      // one focused task with an obvious way back, not a place you dwell.
+      GoRoute(
+        path: AppRoutes.search,
+        builder: (context, state) => const SearchScreen(),
       ),
     ],
     errorBuilder: (context, state) =>

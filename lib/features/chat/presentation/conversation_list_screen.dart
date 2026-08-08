@@ -41,7 +41,9 @@ class ConversationListScreen extends ConsumerWidget {
               // of the tab that already exists.
               onOpenSettings: () => context.go(AppRoutes.settings),
             ),
-            _SearchPrompt(onTap: () => context.go(AppRoutes.search)),
+            // `push`, not `go`: search is no longer a tab, so it belongs on top
+            // of this screen with a back button rather than replacing it.
+            _SearchPrompt(onTap: () => context.push(AppRoutes.search)),
             Expanded(
               child: conversationsAsync.when(
                 loading: () => const SkeletonList(),

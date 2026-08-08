@@ -7,8 +7,13 @@ abstract final class AppRoutes {
   static const String signIn = '/sign-in';
   // --- Tabs, inside the navigation shell -----------------------------------
   static const String conversations = '/conversations';
-  static const String search = '/search';
   static const String settings = '/settings';
+
+  /// Search is *not* a tab. It already has a prominent entry point on the home
+  /// screen, and a permanent tab for it would be a second route to the same
+  /// place — while costing the navigation bar the symmetry that lets its primary
+  /// action sit at true centre.
+  static const String search = '/search';
 
   /// The chat thread deliberately sits *outside* the shell, so opening a
   /// conversation covers the navigation bar rather than sitting above it. A
@@ -28,5 +33,5 @@ abstract final class AppRoutes {
   static String chatPath(String conversationId) => '/chat/$conversationId';
 
   /// Tab order, used by the shell and its navigation bar.
-  static const List<String> tabs = [conversations, search, settings];
+  static const List<String> tabs = [conversations, settings];
 }

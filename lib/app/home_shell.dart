@@ -38,6 +38,12 @@ class HomeShell extends ConsumerWidget {
   }
 }
 
+/// How far the primary action sits above the bar.
+///
+/// Only viable because there are exactly two destinations: the action lands at
+/// true centre, and lifting an off-centre element would look like a mistake.
+const double _actionLift = 12;
+
 /// A floating pill navigation bar with a raised primary action in the middle.
 class _FloatingNavBar extends ConsumerWidget {
   const _FloatingNavBar({
@@ -57,9 +63,12 @@ class _FloatingNavBar extends ConsumerWidget {
     return SafeArea(
       top: false,
       child: Padding(
+        // Top padding equal to the action's lift, so the bar's own layout slot
+        // is tall enough to contain it. Without this the raised button would be
+        // clipped at the top edge.
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.xl,
-          0,
+          _actionLift,
           AppSpacing.xl,
           AppSpacing.md,
         ),
@@ -86,6 +95,8 @@ class _FloatingNavBar extends ConsumerWidget {
               ),
             ],
           ),
+          // Three equal slots, so the action lands at exactly 50% and the lift
+          // reads as deliberate rather than as a button that drifted.
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -97,20 +108,16 @@ class _FloatingNavBar extends ConsumerWidget {
                 badgeCount: pending,
                 onTap: () => onSelect(0),
               ),
-              _NavItem(
-                icon: Icons.search_rounded,
-                activeIcon: Icons.search_rounded,
-                label: 'Search',
-                isActive: currentIndex == 1,
-                onTap: () => onSelect(1),
+              Transform.translate(
+                offset: const Offset(0, -_actionLift),
+                child: _NewChatButton(onTap: onNewChat),
               ),
-              _NewChatButton(onTap: onNewChat),
               _NavItem(
                 icon: Icons.settings_outlined,
                 activeIcon: Icons.settings_rounded,
                 label: 'Settings',
-                isActive: currentIndex == 2,
-                onTap: () => onSelect(2),
+                isActive: currentIndex == 1,
+                onTap: () => onSelect(1),
               ),
             ],
           ),

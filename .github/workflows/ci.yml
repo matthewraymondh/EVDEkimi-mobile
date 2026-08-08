@@ -71,7 +71,14 @@ jobs:
           channel: stable
           cache: true
 
-      - run: pip install onnx numpy onnxruntime
+      # Pinned deliberately. The step below asserts the regenerated model is
+      # byte-identical to the committed one, and serialised ONNX depends on the
+      # library that wrote it — opset defaults, ir_version and field ordering
+      # all move between releases. Unpinned, this job failed not because anyone
+      # edited an asset but because the runner installed newer wheels than the
+      # machine that trained it. These are the versions the committed model and
+      # golden fixture were produced with.
+      - run: pip install onnx==1.22.0 numpy==2.3.4 onnxruntime==1.28.0
       - run: flutter pub get
 
       # Retrain from scratch and confirm the committed model and fixture are

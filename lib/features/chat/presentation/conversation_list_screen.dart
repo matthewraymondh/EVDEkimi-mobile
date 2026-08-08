@@ -276,11 +276,12 @@ class _SearchPrompt extends StatelessWidget {
                     ),
                   ),
                 ),
-                // The on-device claim, at the smallest weight that still reads.
-                // It was a filled badge, which made the loudest element in the
-                // field the one thing in it that is not interactive.
+                // The same chip glyph the rows and message footers use. A
+                // lightning bolt was quieter but meant nothing on its own —
+                // reusing one mark for "this runs on your device" is what lets
+                // it be learned once and recognised everywhere.
                 Icon(
-                  Icons.bolt_rounded,
+                  Icons.memory_rounded,
                   size: AppSizes.iconSm,
                   color: context.chatTheme.onDeviceAccent,
                 ),
@@ -333,7 +334,7 @@ class _ConversationList extends ConsumerWidget {
     final entries = _flatten(conversations, DateTime.now());
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xxxl * 2),
+      padding: EdgeInsets.only(bottom: AppSizes.navBarInset(context)),
       itemCount: entries.length,
       itemBuilder: (context, index) => switch (entries[index]) {
         _SectionEntry(:final label) => _SectionHeading(label: label),
@@ -617,7 +618,23 @@ class _TileBody extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: AppSpacing.sm),
+              // The engine marker rides up here with the timestamp, not down on
+              // the excerpt line. As a labelled pill beside the excerpt it cost
+              // about ninety pixels of the row's only line of content — rows
+              // that ran on-device truncated at half the length of rows that did
+              // not, which made the list look ragged for a reason unrelated to
+              // what the rows said. A glyph on the metadata line costs twelve
+              // pixels of a line that had room, and the excerpt gets its full
+              // width back.
+              if (isOnDevice) ...[
+                Icon(
+                  Icons.memory_rounded,
+                  size: 13,
+                  color: context.chatTheme.onDeviceAccent,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+              ],
               Text(
                 _formatTimestamp(conversation.updatedAt),
                 style: context.texts.labelSmall?.copyWith(
@@ -628,31 +645,14 @@ class _TileBody extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.xxs),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.texts.bodySmall?.copyWith(
-                    color: context.colors.onSurfaceVariant,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-              // The one genuine per-row difference, so the one thing that earns
-              // a mark. Brass is the brand's single accent; spending it on a
-              // state that is actually rare is what keeps it meaningful.
-              if (isOnDevice) ...[
-                const SizedBox(width: AppSpacing.sm),
-                AppBadge(
-                  label: 'On-device',
-                  icon: Icons.memory_rounded,
-                  color: context.chatTheme.onDeviceAccent,
-                ),
-              ],
-            ],
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.texts.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+              height: 1.35,
+            ),
           ),
         ],
       ),

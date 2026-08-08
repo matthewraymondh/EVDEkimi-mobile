@@ -27,9 +27,12 @@ class SettingsScreen extends ConsumerWidget {
       appBar: const GlassAppBar(title: Text('Settings')),
       body: AppBackdrop(
         child: ListView(
-          // Clears the glass bar so the list scrolls beneath it.
+          // Clears the glass bar at the top so the list scrolls beneath it,
+          // and the floating navigation bar at the bottom so the last rows can
+          // actually be reached.
           padding: EdgeInsets.only(
             top: MediaQuery.paddingOf(context).top + kToolbarHeight,
+            bottom: AppSizes.navBarInset(context),
           ),
           children: [
             if (user != null)
@@ -252,10 +255,13 @@ class _SectionHeader extends StatelessWidget {
     ),
     child: Text(
       title.toUpperCase(),
+      // Muted, not the accent. Blue section headers put the app's one signal
+      // colour on five inert labels down a settings screen, which is both loud
+      // and inconsistent with the identical headings on the home list.
       style: context.texts.labelSmall?.copyWith(
-        color: context.colors.primary,
+        color: context.colors.onSurfaceVariant.withValues(alpha: 0.75),
         fontWeight: FontWeight.w700,
-        letterSpacing: 1,
+        letterSpacing: 0.9,
       ),
     ),
   );

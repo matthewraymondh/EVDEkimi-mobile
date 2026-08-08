@@ -69,6 +69,7 @@ class GlassSurface extends StatelessWidget {
     this.shadows = const [],
     this.fallbackColor,
     this.padding,
+    this.blur = defaultBlur,
     super.key,
   });
 
@@ -83,13 +84,26 @@ class GlassSurface extends StatelessWidget {
 
   final EdgeInsetsGeometry? padding;
 
-  /// Backdrop blur, in logical pixels.
+  /// Backdrop blur for this surface, in logical pixels.
+  final double blur;
+
+  /// Blur for chrome that sits over quiet, mostly-static content.
   ///
-  /// Low on purpose. Blur and refraction compete: past roughly σ16 the backdrop
-  /// is smeared flat, there is nothing structured left to bend, and the panel
-  /// reads as frosted plastic. The package's own default of 5 is too little to
-  /// separate the panel from busy content, so this sits between the two.
-  static const double _blurSigma = 12;
+  /// Low on purpose. Blur and refraction compete: past a point the backdrop is
+  /// smeared flat, there is nothing structured left to bend, and the panel reads
+  /// as frosted plastic rather than glass.
+  static const double defaultBlur = 12;
+
+  /// Blur for chrome that sits over arbitrary scrolling content.
+  ///
+  /// The app bar needs roughly twice the nav bar's, and the reason is what is
+  /// underneath rather than what the bar is. A navigation bar floats over a list
+  /// of muted text; an app bar floats over whatever the user scrolls into it,
+  /// including a saturated blue message bubble. At σ12 that bubble stayed a
+  /// recognisable blue *shape* under the bar — a smear with an edge, which reads
+  /// as a rendering fault rather than as a pane. Enough blur to dissolve the
+  /// shape is what turns it back into a tint.
+  static const double heavyBlur = 28;
 
   @override
   Widget build(BuildContext context) {
@@ -122,13 +136,15 @@ class GlassSurface extends StatelessWidget {
           // read as moulded rather than cut.
           shape: shape,
           settings: LiquidGlassSettings(
-            blur: _blurSigma,
+            blur: blur,
             glassColor: chat.glassFill,
-            // The package boosts saturation by default to make glass look
-            // lively over colourful content. On a neutral palette there is
-            // almost nothing to boost, and what little there is turns the one
-            // accent garish, so this is pulled back close to neutral.
-            saturation: 1.1,
+            // No boost at all. The package raises saturation by default so
+            // glass looks lively over colourful content, but on a neutral
+            // palette the only thing there is to boost is the single accent —
+            // so the effect was precisely inverted: it left every quiet surface
+            // untouched and made the one blue element garish wherever chrome
+            // passed over it.
+            saturation: 1,
           ),
           // Premium runs the full Impeller pipeline — texture capture,
           // refraction and chromatic aberration. Correct here specifically
@@ -418,7 +434,11 @@ class _GlassBarPane extends StatelessWidget {
         child: SizedBox(
           width: size.width + _bleed * 2,
           height: kToolbarHeight + topInset + _bleed,
-          child: const GlassSurface(cornerRadius: 0, child: SizedBox.expand()),
+          child: const GlassSurface(
+            cornerRadius: 0,
+            blur: GlassSurface.heavyBlur,
+            child: SizedBox.expand(),
+          ),
         ),
       ),
     );

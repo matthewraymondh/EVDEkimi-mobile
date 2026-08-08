@@ -182,10 +182,22 @@ void main() {
     );
     await tester.pump();
 
+    // Scoped to the list: the search field carries the same glyph on purpose,
+    // so that one mark means "runs on your device" everywhere it appears.
     expect(
-      find.widgetWithText(AppBadge, 'On-device'),
+      find.descendant(
+        of: find.byType(ListView),
+        matching: find.byIcon(Icons.memory_rounded),
+      ),
       findsOneWidget,
       reason: 'exactly the one row it is true of',
+    );
+    expect(
+      find.text('Searched your saved messages on this device.'),
+      findsOneWidget,
+      reason:
+          'the excerpt keeps its full width — as a labelled pill beside it the '
+          'marker cost about ninety pixels of the row and truncated the text',
     );
   });
 

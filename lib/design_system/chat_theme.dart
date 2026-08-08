@@ -43,7 +43,12 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // a whitening rather than a tint, and the stroke does most of the work of
     // saying where the panel ends.
     glassFill: Color(0x99FFFFFF),
-    glassStroke: Color(0x0F000000),
+    // 10%, not the 6% this started at. On a near-white page a 6% line is
+    // present in a colour picker and absent to the eye — the navigation bar
+    // read as a pale blob with no edge at all. Dark mode does not need the
+    // same push, because a light line on a dark ground carries much further
+    // than a dark line on a light one at equal alpha.
+    glassStroke: Color(0x1A000000),
     // Light mode still lights from above, but a white rim on a near-white panel
     // is invisible, so the highlight is what a bright edge actually looks like
     // there: *less* of the darkening the rest of the outline carries.

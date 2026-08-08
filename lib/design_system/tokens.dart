@@ -154,4 +154,25 @@ abstract final class AppSizes {
   static const double avatarMd = 36;
 
   static const double composerMaxHeight = 160;
+
+  /// Height of the floating navigation bar.
+  static const double navBar = 64;
+
+  /// Gap between the navigation bar and the safe-area edge.
+  static const double navBarGap = AppSpacing.lg;
+
+  /// Bottom padding a scrollable inside the shell must reserve.
+  ///
+  /// The shell sets `extendBody: true` so content passes *behind* the floating
+  /// bar, which is what lets a list scroll under it. The consequence is that
+  /// every scrollable in the shell has to reserve this much itself — miss it and
+  /// the last rows are not merely hidden, they are unreachable, because there is
+  /// no scroll extent left to bring them out from under the bar. Settings shipped
+  /// exactly that way: the final two rows could not be scrolled into view.
+  ///
+  /// Takes the system inset into account because the bar sits inside a
+  /// `SafeArea`, so its real footprint is taller than [navBar] by whatever the
+  /// gesture bar or home indicator occupies.
+  static double navBarInset(BuildContext context) =>
+      navBar + navBarGap + MediaQuery.paddingOf(context).bottom;
 }

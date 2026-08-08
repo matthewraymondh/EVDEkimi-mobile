@@ -48,7 +48,7 @@ class HomeShell extends ConsumerWidget {
 /// disc breaking its top edge, its layout slot had to be padded to contain the
 /// overhang, and the whole assembly measured taller than the surface it looked
 /// like. Nothing in the bar can now be a different height from anything else.
-const double _barHeight = 64;
+const double _barHeight = AppSizes.navBar;
 
 /// Side of the primary action and of each destination's tap target.
 const double _slotSize = 48;
@@ -81,7 +81,7 @@ class _FloatingNavBar extends ConsumerWidget {
           AppSpacing.gutter,
           0,
           AppSpacing.gutter,
-          AppSpacing.lg,
+          AppSizes.navBarGap,
         ),
         child: SizedBox(
           height: _barHeight,

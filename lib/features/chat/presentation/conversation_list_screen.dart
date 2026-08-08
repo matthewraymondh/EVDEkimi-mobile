@@ -87,12 +87,19 @@ class ConversationListScreen extends ConsumerWidget {
 /// plane is immediately usable rather than dead.
 Future<void> startNewConversation(BuildContext context, WidgetRef ref) async {
   final settings = ref.read(settingsControllerProvider);
-  final isOnline = ref.read(isOnlineProvider);
-  final onDeviceReady = await ref.read(onDeviceAvailableProvider.future);
 
-  final useOnDevice =
-      settings.preferredEngine.isOnDevice ||
-      (!isOnline && settings.useOnDeviceWhenOffline && onDeviceReady);
+  // Only a standing preference pins a conversation to the local model. Being
+  // offline right now does not, and used to: a chat started in airplane mode
+  // was written with the on-device model *stored on the row*, so it stayed
+  // there after reconnecting. Asking it to book a viewing then refused
+  // forever, because every retry routed back to the engine that had just said
+  // no, and the refusal reads as a deliberate choice the user never made.
+  //
+  // A conversation's model is what it is *for*. Which engine actually answers
+  // a given message is a question about what is reachable at that moment, and
+  // `EngineRouter` already decides it per message — falling back to on-device
+  // while offline and leaving the message queued for a cloud engine after.
+  final useOnDevice = settings.preferredEngine.isOnDevice;
 
   final result = await ref
       .read(conversationRepositoryProvider)

@@ -35,20 +35,20 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   static const ChatTheme light = ChatTheme(
     // The user's own messages carry the brand colour: it is the one element on
     // screen that should feel like "you", and it anchors the eye when scanning.
-    outgoingBubble: AppPalette.brandTeal,
+    outgoingBubble: AppPalette.brandNavy,
     onOutgoingBubble: AppPalette.white,
     // Assistant messages are white on the canvas rather than a tinted fill.
     // Model output is long-form text and needs to read like a document page.
     incomingBubble: AppPalette.white,
     onIncomingBubble: AppPalette.ink900,
     bubbleBorder: AppPalette.ink100,
-    caret: AppPalette.brandTeal,
+    caret: AppPalette.brandNavy,
     codeBackground: AppPalette.ink800,
     codeBorder: AppPalette.ink700,
     inlineCodeBackground: AppPalette.ink100,
     composerBackground: AppPalette.white,
     composerBorder: AppPalette.ink200,
-    onDeviceAccent: AppPalette.brandAmber,
+    onDeviceAccent: AppPalette.brandBrass,
     offlineBanner: AppPalette.ink700,
     onOfflineBanner: AppPalette.ink50,
     success: AppPalette.successLight,
@@ -62,12 +62,12 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // Dark mode inverts the emphasis: a saturated fill at full brightness is
     // fatiguing, so the outgoing bubble uses a deep brand tone with a bright
     // foreground instead.
-    outgoingBubble: AppPalette.brandTealDeep,
+    outgoingBubble: AppPalette.brandNavyDeep,
     onOutgoingBubble: AppPalette.ink100,
     incomingBubble: AppPalette.ink800,
     onIncomingBubble: AppPalette.ink100,
     bubbleBorder: AppPalette.ink700,
-    caret: AppPalette.brandTealBright,
+    caret: AppPalette.brandNavyLifted,
     codeBackground: AppPalette.ink900,
     codeBorder: AppPalette.ink700,
     inlineCodeBackground: AppPalette.ink700,

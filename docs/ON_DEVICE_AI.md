@@ -15,7 +15,7 @@ Runtime Mobile.** Not a stub, not a mock, not a placeholder.
 | Size | 130 KB |
 | Runtime | ONNX Runtime Mobile via FFI (`onnxruntime` 1.4.1) |
 | Inputs | `features` — `float32[1, 512]` |
-| Outputs | `embedding` — `float32[1, 64]`, `intent_probs` — `float32[1, 6]` |
+| Outputs | `embedding` — `float32[1, 64]`, `intent_probs` — `float32[1, 7]` |
 | Network | none, ever |
 | Trained by | `tools/train_router_model.py` (committed) |
 
@@ -39,10 +39,13 @@ The graph:
 ```
 features[1,512] ──MatMul(W1)──Add(b1)──Tanh──▶ embedding[1,64]
                                                     │
-                                    MatMul(W2)──Add(b2)──Softmax──▶ intent_probs[1,6]
+                                    MatMul(W2)──Add(b2)──Softmax──▶ intent_probs[1,7]
 ```
 
-Six intents: `greeting`, `gratitude`, `recall`, `code`, `summarize`, `question`.
+Seven intents, chosen for what a property assistant actually receives:
+`greeting`, `gratitude`, `recall`, `property_search`, `pricing`, `viewing`,
+`legal` — the last covering the leasehold/freehold/PT PMA questions that dominate
+Bali real estate.
 
 ### What it is *not*
 
@@ -54,9 +57,10 @@ like local generation but is a template engine — is the kind of thing that sur
 a demo and fails a code review. When the model is asked for something it cannot
 honestly do, `OnDeviceEngine` **says so and points at the cloud model**:
 
-> That looks like a request to write or debug code, which the on-device model
-> can't do. It classified your message as **code** (94% confidence) in a few
-> milliseconds, but it is a small classifier and embedder — not a local LLM.
+> You are asking me to quote a price, which changes too often to answer from a
+> cached model. The on-device model cannot do that. It classified your message as
+> **pricing** (99% confidence) in a few milliseconds, but it is a small
+> classifier and embedder — not a local LLM, and not connected to our listings.
 
 A confidently wrong local answer is worse than no answer.
 

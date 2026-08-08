@@ -1,45 +1,61 @@
 import 'package:flutter/material.dart';
 
-/// Raw brand colours.
+/// Raw brand colours, taken from the EVDEkimi mark.
 ///
 /// These are the only literal colours in the app; everything else reads from
 /// `ColorScheme` or `ChatTheme`. Keeping the literals in one file is what makes
-/// it possible to answer "is this colour on-brand?" by reading a single screen
-/// of code.
+/// it possible to answer "is this on-brand?" by reading a single screen of code.
+///
+/// The identity is a white geometric roofline on deep navy — a property brand,
+/// not a tech one. Two consequences follow:
+///
+/// * **Navy is the primary, and it is dark.** Filled buttons and outgoing
+///   message bubbles are near-black navy with white text. That reads as
+///   considered and premium, which is the register real estate sells in; a
+///   bright saturated primary would read as a consumer app.
+/// * **The neutral ramp is navy-tinted, not neutral grey.** Greys mixed toward
+///   the brand hue keep large surfaces feeling related to the mark instead of
+///   merely adjacent to it.
 abstract final class AppPalette {
-  /// EVDEkimi teal. Used as the seed so the generated tonal palettes stay
-  /// harmonically related to the brand mark rather than to Material's default
-  /// violet.
-  static const Color brandTeal = Color(0xFF0E7C6B);
-  static const Color brandTealBright = Color(0xFF19A38C);
-  static const Color brandTealDeep = Color(0xFF04322C);
+  /// The mark's background. Primary brand colour.
+  static const Color brandNavy = Color(0xFF1B2A41);
 
-  /// Warm secondary, used for accents that must not read as "primary action" —
-  /// on-device badges, model chips.
-  static const Color brandAmber = Color(0xFFC98A2B);
+  /// Lifted navy for dark mode, where the base navy would disappear into the
+  /// surface behind it. Still unmistakably the same hue.
+  static const Color brandNavyLifted = Color(0xFF5A7CA8);
 
-  /// Neutral ramp. Hand-tuned rather than generated: Material's neutral ramp
-  /// carries a violet tint from the seed, which fights the teal in dark mode.
-  static const Color ink900 = Color(0xFF08100F);
-  static const Color ink800 = Color(0xFF0D1716);
-  static const Color ink700 = Color(0xFF14211F);
-  static const Color ink600 = Color(0xFF1D2E2B);
-  static const Color ink500 = Color(0xFF2A403C);
-  static const Color ink400 = Color(0xFF5A716C);
-  static const Color ink300 = Color(0xFF8FA5A0);
-  static const Color ink200 = Color(0xFFC4D3CF);
-  static const Color ink100 = Color(0xFFE4EDEA);
-  static const Color ink50 = Color(0xFFF3F8F6);
+  /// Deepest tone, for dark-mode fills that must sit under white text.
+  static const Color brandNavyDeep = Color(0xFF0C1421);
+
+  /// Warm brass. Used only where something must read as *distinct* from the
+  /// navy system — the on-device badge, a queued state. Never decoratively:
+  /// spending it dilutes the one accent the brand has.
+  static const Color brandBrass = Color(0xFFC08A2E);
+
+  /// Navy-tinted neutral ramp.
+  ///
+  /// Hand-tuned rather than generated: Material's neutral ramp carries a violet
+  /// cast from the seed, which fights a navy brand on the large surfaces that
+  /// make up most of a chat screen.
+  static const Color ink900 = Color(0xFF0B1220);
+  static const Color ink800 = Color(0xFF111C2E);
+  static const Color ink700 = Color(0xFF1B2739);
+  static const Color ink600 = Color(0xFF27364C);
+  static const Color ink500 = Color(0xFF3A4C68);
+  static const Color ink400 = Color(0xFF64748B);
+  static const Color ink300 = Color(0xFF94A3B8);
+  static const Color ink200 = Color(0xFFCBD5E1);
+  static const Color ink100 = Color(0xFFE2E8F0);
+  static const Color ink50 = Color(0xFFF1F5F9);
   static const Color white = Color(0xFFFFFFFF);
 
   /// Page background in light mode.
   ///
-  /// Deliberately *not* white. Cards and message bubbles are white, so the page
+  /// Deliberately not white. Cards and message bubbles are white, so the page
   /// beneath them has to be a shade darker for them to read as raised surfaces —
   /// white-on-white needs borders or shadows to separate, and both are heavier
-  /// than a two-percent tonal step. Neutral rather than teal-tinted so it stays
-  /// quiet under the brand colour.
-  static const Color canvas = Color(0xFFF4F6F9);
+  /// than a two-percent tonal step.
+  static const Color canvas = Color(0xFFF4F6FA);
 
   /// Semantic status colours, defined for both themes so contrast holds.
   static const Color successLight = Color(0xFF1E7A44);

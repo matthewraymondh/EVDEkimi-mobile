@@ -270,24 +270,24 @@ class _EmptyConversation extends ConsumerWidget {
   /// actually sent is not.
   static const List<(String, String, IconData)> _prompts = [
     (
-      'Explain a concept',
-      'Explain server-sent events like I am new to it',
-      Icons.school_outlined,
+      'Find a villa',
+      'Show me 3 bedroom villas in Canggu with a private pool',
+      Icons.villa_outlined,
     ),
     (
-      'Write some code',
-      'Write a Dart function that debounces a callback',
-      Icons.code_rounded,
+      'Check prices',
+      'What is the current price range for a 2 bedroom villa in Pererenan?',
+      Icons.payments_outlined,
     ),
     (
-      'Compare options',
-      'Summarise the tradeoffs of on-device inference versus cloud inference',
-      Icons.balance_rounded,
+      'Book a viewing',
+      'Can I schedule a viewing this Saturday afternoon?',
+      Icons.event_available_outlined,
     ),
     (
-      'Summarise something',
-      'Summarise the key points of the article I am about to paste',
-      Icons.notes_rounded,
+      'Ownership rules',
+      'Explain the difference between leasehold and freehold for foreign buyers',
+      Icons.gavel_rounded,
     ),
   ];
 

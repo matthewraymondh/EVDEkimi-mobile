@@ -7,16 +7,17 @@
     "greeting",
     "gratitude",
     "recall",
-    "code",
-    "summarize",
-    "question"
+    "property_search",
+    "pricing",
+    "viewing",
+    "legal"
   ],
   "inputName": "features",
   "outputNames": [
     "embedding",
     "intent_probs"
   ],
-  "sha256": "15d256fec53a5ba7f848271fcb4588dda5b755e6c5e9885f64d8295d32bd3237",
-  "sizeBytes": 133363,
+  "sha256": "3c8b449932af00c391df8beaf72bd71882190919e002dcbba99da96b3bb109db",
+  "sizeBytes": 133623,
   "producer": "tools/train_router_model.py"
 }

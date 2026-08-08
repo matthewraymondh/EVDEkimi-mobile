@@ -14,7 +14,7 @@ take-home assessment.
 | **Persistence** | sqflite + hand-written migrations |
 | **Networking** | Dio + a hand-written server-sent-events parser |
 | **On-device AI** | ONNX Runtime Mobile, 130 KB model bundled in the app |
-| **Tests** | 106 passing · `flutter analyze` clean under a strict lint set |
+| **Tests** | 123 passing · `flutter analyze` clean under a strict lint set |
 
 ---
 
@@ -63,7 +63,7 @@ anything; use the password `wrongpassword` to see the invalid-credentials path.
 
 ```bash
 flutter analyze            # No issues found!
-flutter test               # All tests passed!  (106 tests)
+flutter test               # All tests passed!  (123 tests)
 flutter build apk --debug  # per-ABI APKs in build/app/outputs/flutter-apk/
 ```
 
@@ -277,7 +277,7 @@ Access tokens expire after 5 minutes and refresh tokens rotate, so a normal
 session exercises the real refresh path rather than a happy-path stub.
 
 **The mock is not a model.** Replies are canned Markdown selected by keyword
-(code, summary, on-device, greeting, thanks) with a few generic variants chosen by
+(listings, pricing, viewings, ownership structures, greeting, thanks) with a few generic variants chosen by
 a stable hash of the prompt, so repeated questions do not return byte-identical
 text. The *streaming* is real — chunked SSE, jittered token pacing, one token in
 seventeen deliberately split across two TCP writes. Point `API_BASE_URL` at any

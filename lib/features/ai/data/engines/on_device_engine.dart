@@ -149,11 +149,12 @@ class OnDeviceEngine implements InferenceEngine {
   Future<String> _compose(String prompt, RouterPrediction prediction) async {
     switch (prediction.intent) {
       case RouterIntent.greeting:
-        return 'Hello. You are talking to the **on-device model**, which runs '
-            'entirely on this phone — no network involved.\n\n'
-            'I can greet you, acknowledge thanks, and search your own '
-            'conversation history. For anything that needs real generation, '
-            'switch to a cloud model in the model picker.';
+        return 'Hello, and welcome to EVDEkimi. You are talking to the '
+            '**on-device model**, which runs entirely on this phone — no '
+            'network involved.\n\n'
+            'Offline I can greet you and search your own conversation history. '
+            'For live listings, prices and viewings, switch to a cloud model in '
+            'the model picker or reconnect.';
 
       case RouterIntent.gratitude:
         return "You're welcome. Still running locally, still offline-capable.";
@@ -161,9 +162,10 @@ class OnDeviceEngine implements InferenceEngine {
       case RouterIntent.recall:
         return _composeRecall(prompt);
 
-      case RouterIntent.code:
-      case RouterIntent.summarize:
-      case RouterIntent.question:
+      case RouterIntent.propertySearch:
+      case RouterIntent.pricing:
+      case RouterIntent.viewing:
+      case RouterIntent.legal:
         return _composeDeferral(prediction);
     }
   }
@@ -210,18 +212,25 @@ class OnDeviceEngine implements InferenceEngine {
 
   /// Declines, honestly, and says what to do instead.
   String _composeDeferral(RouterPrediction prediction) {
+    // Each of these needs something the device does not have: live inventory, a
+    // current price, a calendar, or a lawyer. Naming the specific gap is more
+    // useful than a generic "I can't help with that".
     final task = switch (prediction.intent) {
-      RouterIntent.code => 'write or debug code',
-      RouterIntent.summarize => 'summarise text',
-      _ => 'answer open-ended questions',
+      RouterIntent.propertySearch =>
+        'search listings, which needs live inventory from our catalogue',
+      RouterIntent.pricing =>
+        'quote a price, which changes too often to answer from a cached model',
+      RouterIntent.viewing => 'book a viewing, which needs an agent calendar',
+      _ =>
+        'answer an ownership question — and property law is exactly where a '
+            'confident guess would be worst',
     };
 
-    return 'That looks like a request to $task, which the on-device model '
-        "can't do.\n\n"
-        'It classified your message as **${prediction.intent.name}** '
+    return 'You are asking me to $task. The on-device model cannot do that.\n\n'
+        'It classified your message as **${prediction.intent.wireName}** '
         '(${(prediction.confidence * 100).toStringAsFixed(0)}% confidence) in a '
         'few milliseconds, but it is a small classifier and embedder — not a '
-        'local LLM.\n\n'
+        'local LLM, and not connected to our listings.\n\n'
         '**To get a real answer:** reconnect and pick a cloud model, or keep '
         'this message queued — it will send automatically once you are back '
         'online.';

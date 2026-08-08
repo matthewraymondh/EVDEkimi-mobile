@@ -44,9 +44,10 @@ void main() {
           'greeting',
           'gratitude',
           'recall',
-          'code',
-          'summarize',
-          'question',
+          'property_search',
+          'pricing',
+          'viewing',
+          'legal',
         ]),
       );
     });
@@ -155,15 +156,15 @@ void main() {
   group('VectorMath.cosineSimilarity', () {
     test('is 1 for identical vectors and 0 for orthogonal ones', () {
       const vectorizer = HashingVectorizer();
-      final a = vectorizer.transform('write a dart function');
+      final a = vectorizer.transform('three bedroom villa in seminyak');
       expect(VectorMath.cosineSimilarity(a, a), closeTo(1.0, 1e-6));
     });
 
     test('ranks a paraphrase above an unrelated sentence', () {
       const vectorizer = HashingVectorizer();
-      final query = vectorizer.transform('how do i parse json in flutter');
-      final related = vectorizer.transform('parsing json with flutter');
-      final unrelated = vectorizer.transform('the capital of indonesia');
+      final query = vectorizer.transform('villa for sale in canggu');
+      final related = vectorizer.transform('canggu villa listings for sale');
+      final unrelated = vectorizer.transform('how long is the lease term');
 
       expect(
         VectorMath.cosineSimilarity(query, related),

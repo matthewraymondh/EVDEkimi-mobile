@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 /// The colour scheme is seeded from the brand teal so all tonal roles stay
 /// harmonically related, then a small number of surface roles are overridden by
 /// hand. That override is the point: `ColorScheme.fromSeed` in dark mode
-/// produces surfaces with a violet cast that fights a teal brand, and a chat app
+/// produces surfaces with a violet cast that fights a navy brand, and a chat app
 /// is mostly surface. Everything else is left to Material so future component
 /// themes inherit sensible defaults.
 abstract final class AppTheme {
@@ -20,7 +20,7 @@ abstract final class AppTheme {
 
   static final ColorScheme _lightScheme =
       ColorScheme.fromSeed(
-        seedColor: AppPalette.brandTeal,
+        seedColor: AppPalette.brandNavy,
         // ignore: avoid_redundant_argument_values
         brightness: Brightness.light,
       ).copyWith(
@@ -34,14 +34,14 @@ abstract final class AppTheme {
         onSurface: AppPalette.ink900,
         onSurfaceVariant: AppPalette.ink400,
         outlineVariant: AppPalette.ink100,
-        primary: AppPalette.brandTeal,
+        primary: AppPalette.brandNavy,
         onPrimary: AppPalette.white,
         error: AppPalette.dangerLight,
       );
 
   static final ColorScheme _darkScheme =
       ColorScheme.fromSeed(
-        seedColor: AppPalette.brandTeal,
+        seedColor: AppPalette.brandNavy,
         brightness: Brightness.dark,
       ).copyWith(
         // A near-black base rather than Material's elevated grey. Chat is a
@@ -57,8 +57,8 @@ abstract final class AppTheme {
         onSurfaceVariant: AppPalette.ink300,
         outline: AppPalette.ink500,
         outlineVariant: AppPalette.ink600,
-        primary: AppPalette.brandTealBright,
-        onPrimary: AppPalette.brandTealDeep,
+        primary: AppPalette.brandNavyLifted,
+        onPrimary: AppPalette.brandNavyDeep,
         error: AppPalette.dangerDark,
       );
 

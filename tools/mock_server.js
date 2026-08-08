@@ -166,7 +166,14 @@ function authenticate(req) {
 // Reply generation
 // --------------------------------------------------------------------------
 
-/** Builds a plausible Markdown reply so the renderer gets exercised. */
+/** Builds a plausible Markdown reply so the renderer gets exercised.
+ *
+ * The content is EVDEkimi's actual domain — Bali property — not generic chatbot
+ * filler. That matters for a demo: an assistant answering questions no user of
+ * this app would ask makes the whole product look unconsidered, and the details
+ * that sell it (leasehold terms, price per are, area names) are exactly the ones
+ * a reviewer checks.
+ */
 function composeReply(messages) {
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   const prompt =
@@ -177,134 +184,133 @@ function composeReply(messages) {
         : '';
   const lower = prompt.toLowerCase();
 
-  if (/\b(code|function|dart|flutter|debounce|sort|parse)\b/.test(lower)) {
-    return [
-      'Here is a compact implementation:',
-      '',
-      '```dart',
-      'Timer? _timer;',
-      '',
-      'void debounce(Duration wait, void Function() action) {',
-      '  _timer?.cancel();',
-      '  _timer = Timer(wait, action);',
-      '}',
-      '```',
-      '',
-      'A few notes:',
-      '',
-      '1. Cancel the pending timer before scheduling a new one, or every',
-      '   keystroke leaves a timer behind.',
-      '2. Cancel it in `dispose()` too — otherwise the callback can fire after',
-      '   the widget is gone.',
-      '3. For search-as-you-type, 250–300 ms is usually the sweet spot.',
-      '',
-      'Want a `Debouncer` class with a `dispose()` instead?',
-    ].join('\n');
-  }
-
-  if (/\b(summar|tldr|tl;dr|key points|condense)\b/.test(lower)) {
-    return [
-      '**Summary**',
-      '',
-      '- The main claim is that latency dominates perceived quality.',
-      '- Two supporting points: streaming hides model think-time, and local',
-      '  persistence hides network variance.',
-      '- The caveat is that neither helps if the first token never arrives.',
-      '',
-      'Net: optimise for *time to first token*, not total generation time.',
-    ].join('\n');
-  }
-
-  if (/\b(on-device|onnx|offline|local model|inference)\b/.test(lower)) {
-    return [
-      'On-device inference trades capability for independence.',
-      '',
-      '| Concern | Cloud | On-device |',
-      '| --- | --- | --- |',
-      '| Capability | High | Bounded by RAM |',
-      '| Latency | Network-bound | Steady, no round trip |',
-      '| Privacy | Data leaves device | Stays local |',
-      '| Cost | Per token | Battery only |',
-      '',
-      'The usual answer is *both*: route to the cloud when reachable, and keep',
-      'a small local model for classification, embeddings and search.',
-    ].join('\n');
-  }
-
   if (prompt.trim().length === 0) {
-    return 'I did not catch a question there — what would you like to know?';
+    return 'I did not catch that — what are you looking for?';
   }
 
-  if (/^(hi|hello|hey|halo|hai|yo)\b/.test(lower)) {
+  if (/^(hi|hello|hey|halo|hai|yo|good morning|selamat)\b/.test(lower)) {
     return [
-      'Hello. You are talking to the **mock backend**, not a real model — it',
-      'streams canned Markdown over SSE so the client can be exercised without an',
-      'API key.',
+      'Selamat datang — welcome to **EVDEkimi**.',
       '',
-      'Try asking about code, a summary, or on-device inference to see different',
-      'shaped replies.',
+      'I can help you find property across Bali: villas in Canggu and Seminyak,',
+      'land in Ubud, beachfront in Sanur and Uluwatu.',
+      '',
+      'Tell me the area, the number of bedrooms, or your budget and I will start',
+      'there.',
     ].join('\n');
   }
 
   if (/\b(thanks|thank you|makasih|terima kasih|cheers)\b/.test(lower)) {
-    return 'Any time. Still just a mock server, but glad the streaming works.';
+    return 'Terima kasih — happy to help. Anything else you would like to see?';
   }
 
-  // Short or placeholder prompts ("test", "hmm", "asdf") carry no topic to react
-  // to. Answering them with the long generic essay is what made every reply look
-  // identical, so they get their own short, obviously-a-mock response.
-  if (prompt.trim().length < 12 || /^(test|testing|ping|check)\b/.test(lower)) {
+  if (/\b(leasehold|freehold|hak pakai|hak milik|pt pma|nominee|certificate|notary|zoning|permit|legal|own land)\b/.test(lower)) {
     return [
-      `Received **${prompt.trim()}** — ${countWords(prompt)} word(s), streamed`,
-      `as ${tokenise(composeProbe(prompt)).length} chunks over server-sent events.`,
+      'Ownership in Indonesia is the part worth getting right before anything',
+      'else, so here is the short version.',
       '',
-      'This is the mock backend echoing you, not a language model. Ask something',
-      'with a topic in it (code, a summary, a question) for a fuller reply.',
+      '| Structure | Who can hold it | Typical term |',
+      '| --- | --- | --- |',
+      '| Hak Milik (freehold) | Indonesian citizens only | Perpetual |',
+      '| Hak Pakai (right to use) | Foreign individuals with a KITAS/KITAP | 30 yrs, extendable |',
+      '| Leasehold | Anyone, via contract | 25–30 yrs, extension negotiable |',
+      '| HGB via PT PMA | Foreign-owned company | 30 yrs + extensions |',
+      '',
+      '**What actually matters in practice:**',
+      '',
+      '1. Check the certificate class and that it matches what is advertised.',
+      '2. Confirm the zoning permits your intended use — a villa on land zoned',
+      '   for agriculture cannot be legally licensed.',
+      '3. Agree the extension terms *in the original lease*, not later.',
+      '',
+      'Our notary handles due diligence on every listing. Want me to pull the',
+      'certificate details for a specific property?',
     ].join('\n');
   }
 
-  // Everything else: vary by prompt so repeated questions do not produce
-  // byte-identical answers, which reads as a broken app rather than a stub.
+  if (/\b(price|cost|budget|how much|roi|yield|return|fee|tax|deposit|payment|negotiable)\b/.test(lower)) {
+    return [
+      'Here is roughly where the market sits right now.',
+      '',
+      '| Area | 2BR villa | 3BR villa | Land / are |',
+      '| --- | --- | --- | --- |',
+      '| Canggu / Berawa | $195k | $310k | $95k |',
+      '| Pererenan | $180k | $285k | $80k |',
+      '| Seminyak | $230k | $365k | $120k |',
+      '| Ubud | $150k | $240k | $55k |',
+      '| Uluwatu | $165k | $270k | $60k |',
+      '',
+      'Figures are leasehold, 25-year term. Freehold runs materially higher.',
+      '',
+      'On returns: a well-managed 2BR in Canggu is currently seeing **10–14%',
+      'gross yield**, before management fees of around 20% and roughly 10% for',
+      'maintenance and taxes.',
+      '',
+      'What is your budget, and is this for personal use or rental income?',
+    ].join('\n');
+  }
+
+  if (/\b(view|viewing|visit|tour|see it|inspection|appointment|schedule|book|meet)\b/.test(lower)) {
+    return [
+      'Happy to arrange that.',
+      '',
+      'Viewings run **Monday to Saturday, 09:00–17:00 WITA**. Most clients see',
+      'three or four properties in a half day — our driver handles the route.',
+      '',
+      '- **This week:** Thursday and Friday afternoon are open',
+      '- **Next week:** most mornings',
+      '- **Remote:** we can do a live walkthrough on WhatsApp video instead',
+      '',
+      'Which day suits you, and are you already in Bali?',
+    ].join('\n');
+  }
+
+  if (/\b(villa|land|property|house|apartment|listing|bedroom|canggu|seminyak|ubud|uluwatu|sanur|pererenan|berawa|beachfront|pool|ocean)\b/.test(lower)) {
+    return [
+      'Here are three that fit what you described.',
+      '',
+      '**1. Villa Tanah Barak — Pererenan**',
+      '3 bed · 3 bath · 12×4 m pool · 250 m² build on 3 are',
+      'Leasehold to 2051 · **$298,000**',
+      'Rice-field frontage, eight minutes to Pererenan beach.',
+      '',
+      '**2. Villa Melati — Berawa, Canggu**',
+      '2 bed · 2 bath · private pool · 160 m² build on 2 are',
+      'Leasehold to 2049 · **$212,000**',
+      'Walkable to Finns and Atlas; currently rented at 82% occupancy.',
+      '',
+      '**3. Bukit Ocean Plot — Uluwatu**',
+      'Land only · 6 are · clean Hak Milik, convertible',
+      '**$54,000 per are**',
+      'Ocean view, road access already in place.',
+      '',
+      'Want floor plans for any of these, or shall I filter by budget?',
+    ].join('\n');
+  }
+
+  // Anything off-domain: answer briefly, then steer back. Varied by prompt so
+  // repeated questions do not return byte-identical text.
   const variants = [
     [
-      'Short answer: it depends on where the bottleneck actually is.',
-      '',
-      '1. **Measure first.** Assumptions about hot paths are wrong more often',
-      '   than not.',
-      '2. **Fix the biggest term.** A 10× win on 2% of the time is nothing.',
-      '3. **Keep it observable.** If you cannot see a regression, it will return.',
+      'That sits a little outside what I handle, but the short answer is that it',
+      'depends on how reversible the decision is — cheap and reversible, act now;',
+      'expensive and permanent, take the time.',
     ],
     [
-      'The useful framing here is *what changes if you are wrong*.',
-      '',
-      '- If the cost of being wrong is low, ship the simple version now.',
-      '- If it is high and hard to reverse, spend the time up front.',
-      '- Most decisions are the first kind and get treated like the second.',
+      'Not quite my area, though the useful framing is usually to separate what',
+      'you can measure from what you are assuming, and go looking for the second.',
     ],
     [
-      'There are two common answers, and they disagree for a good reason.',
-      '',
-      '| Approach | Wins when |',
-      '| --- | --- |',
-      '| Do it eagerly | The work is cheap and the result is always needed |',
-      '| Do it lazily | The work is expensive and often wasted |',
-      '',
-      'Pick by which cost you can actually measure.',
-    ],
-    [
-      'Worth separating the mechanism from the policy.',
-      '',
-      'The *mechanism* is usually simple and stable. The *policy* — when to apply',
-      'it, what to do on failure — is where the real complexity lives, and it is',
-      'the part worth writing down.',
+      'A bit outside property, but worth saying: most questions like this turn on',
+      'one term dominating all the others. Find that term first.',
     ],
   ];
 
   const chosen = variants[stableIndex(prompt, variants.length)];
   return [
-    `You asked about **${prompt.slice(0, 72)}${prompt.length > 72 ? '…' : ''}**.`,
-    '',
     ...chosen,
+    '',
+    'On property in Bali though — areas, prices, viewings, ownership — ask away.',
     '',
     '_Mock backend — canned text, streamed for real over SSE._',
   ].join('\n');

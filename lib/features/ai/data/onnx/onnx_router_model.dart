@@ -10,26 +10,57 @@ import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 import 'package:onnxruntime/onnxruntime.dart';
 
 /// What the on-device model thinks a message is asking for.
+/// The intents the model is trained on.
+///
+/// These are the classes an EVDEkimi property assistant actually sees, not
+/// generic chatbot categories — searching listings, asking price, booking a
+/// viewing, and the ownership questions that dominate Bali real estate.
+///
+/// Declaration order **is** the softmax output order and is part of the contract
+/// with `tools/train_router_model.py`. Append only; reordering silently remaps
+/// every prediction, which is why a test pins it.
 enum RouterIntent {
-  greeting,
-  gratitude,
+  greeting('greeting'),
+  gratitude('gratitude'),
 
   /// Asking about something earlier in the user's own history.
-  recall,
-  code,
-  summarize,
-  question;
+  recall('recall'),
+
+  /// Looking for listings — area, bedrooms, features.
+  propertySearch('property_search'),
+
+  /// Price, budget, yield, fees.
+  pricing('pricing'),
+
+  /// Arranging a site visit or a call.
+  viewing('viewing'),
+
+  /// Ownership structures: leasehold, freehold, Hak Pakai, PT PMA.
+  legal('legal');
+
+  const RouterIntent(this.wireName);
+
+  /// The label as the training script writes it.
+  ///
+  /// Kept separate from the Dart identifier because the model's labels are
+  /// snake_case and Dart enum names are lowerCamelCase. Deriving one from the
+  /// other by string munging would be a silent failure waiting to happen.
+  final String wireName;
 
   static RouterIntent fromName(String name) => RouterIntent.values.firstWhere(
-    (intent) => intent.name == name,
-    orElse: () => RouterIntent.question,
+    (intent) => intent.wireName == name,
+    // An unrecognised label means the asset is newer than this build. Falling
+    // back to a cloud-routed intent is the safe direction: it defers rather
+    // than answering locally with a class we do not understand.
+    orElse: () => RouterIntent.propertySearch,
   );
 
   /// Whether the local path can plausibly answer this without the cloud.
   ///
   /// Greetings, thanks and history lookups are answerable from templates plus
-  /// the user's own stored messages. Anything requiring world knowledge or
-  /// generation is not, and must not be faked locally.
+  /// the user's own stored messages. Anything needing live inventory, a price,
+  /// a calendar or legal advice is not, and must not be faked locally — a
+  /// confidently wrong answer about property law is worse than no answer.
   bool get isLocallyAnswerable =>
       this == RouterIntent.greeting ||
       this == RouterIntent.gratitude ||

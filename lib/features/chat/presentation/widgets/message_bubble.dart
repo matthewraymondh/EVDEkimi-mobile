@@ -87,8 +87,28 @@ class _Bubble extends StatelessWidget {
     final chat = context.chatTheme;
     final isUser = message.isFromUser;
 
-    final background = isUser ? chat.outgoingBubble : chat.incomingBubble;
-    final foreground = isUser ? chat.onOutgoingBubble : chat.onIncomingBubble;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (message.hasAttachments)
+          _AttachmentStrip(attachments: message.attachments),
+
+        if (message.isAwaitingFirstToken)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+            child: TypingIndicator(label: statusLabel),
+          )
+        else if (message.hasContent)
+          _MessageText(
+            message: message,
+            foreground: isUser ? chat.onOutgoingBubble : chat.onIncomingBubble,
+          ),
+
+        if (message.status == MessageStatus.failed &&
+            message.errorMessage != null)
+          _ErrorNote(message: message.errorMessage!),
+      ],
+    );
 
     return ConstrainedBox(
       // Cap the width so long answers form a readable column instead of running
@@ -96,38 +116,54 @@ class _Bubble extends StatelessWidget {
       constraints: const BoxConstraints(
         maxWidth: AppSpacing.readableMaxWidth * 0.78,
       ),
-      child: Container(
+      child: isUser ? _outgoing(chat, content) : _incoming(content),
+    );
+  }
+
+  /// The user's own message: a filled bubble.
+  ///
+  /// The fill is a gradient within one hue rather than across two. A single step
+  /// of the same blue is a light-falloff cue and reads as a solid object; two
+  /// different hues would read as decoration, which is what a flat bright blue
+  /// was already edging toward.
+  Widget _outgoing(ChatTheme chat, Widget content) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [chat.outgoingBubble, chat.outgoingBubbleEnd],
+        ),
+        borderRadius: AppRadius.bubbleOutgoing,
+      ),
+      child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.md,
         ),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: isUser
-              ? AppRadius.bubbleOutgoing
-              : AppRadius.bubbleIncoming,
-          border: isUser ? null : Border.all(color: chat.bubbleBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (message.hasAttachments)
-              _AttachmentStrip(attachments: message.attachments),
-
-            if (message.isAwaitingFirstToken)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-                child: TypingIndicator(label: statusLabel),
-              )
-            else if (message.hasContent)
-              _MessageText(message: message, foreground: foreground),
-
-            if (message.status == MessageStatus.failed &&
-                message.errorMessage != null)
-              _ErrorNote(message: message.errorMessage!),
-          ],
-        ),
+        child: content,
       ),
+    );
+  }
+
+  /// The assistant's reply: no bubble at all.
+  ///
+  /// Model output is long-form prose, often several paragraphs with headings,
+  /// lists and code in it. Wrapping that in a card fights the content twice
+  /// over: it boxes a block of reading material that wants to breathe, and it
+  /// puts a second border around every code block — a card inside a card.
+  ///
+  /// Dropping it also fixes the asymmetry that made the screen feel heavy. Two
+  /// filled bubbles alternating down the page reads as a messaging app; one
+  /// filled bubble for what *you* said and plain text for the answer reads as a
+  /// document being written back to you, which is what it is.
+  ///
+  /// Everything that genuinely needs an edge still has one: code blocks, error
+  /// notes, and attachment thumbnails all carry their own.
+  Widget _incoming(Widget content) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 3, right: AppSpacing.sm),
+      child: content,
     );
   }
 }
@@ -140,8 +176,16 @@ class _MessageText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseStyle = context.texts.bodyLarge?.copyWith(color: foreground);
     final isStreaming = message.status == MessageStatus.streaming;
+
+    // 1.5 on the assistant side. With no bubble around it the line spacing is
+    // the only thing setting the reading rhythm, and prose at the default
+    // spacing on a bare canvas looks cramped in a way it never does inside a
+    // card — the card's padding was doing work the leading now has to do.
+    final baseStyle = context.texts.bodyLarge?.copyWith(
+      color: foreground,
+      height: message.isFromUser ? 1.4 : 1.5,
+    );
 
     if (message.isFromUser) {
       return SelectableText(message.content, style: baseStyle);
@@ -369,6 +413,17 @@ class _ErrorNote extends StatelessWidget {
 }
 
 /// Metadata row: status, engine, latency, and the actions for this message.
+///
+/// Every item is the same chip — borderless, 11px, muted glyph — whether it is a
+/// state the app is reporting or a button. They previously came in three
+/// treatments (a filled badge, a bare `Text`, and an inked action), which made a
+/// row of four items look like four unrelated things and gave the most visual
+/// weight to "On-device", the one item you cannot press.
+///
+/// On the assistant side the row scrolls horizontally rather than wrapping. A
+/// wrapped second line pushes the next message down and makes the transcript
+/// jog; a row that scrolls keeps every reply the same height regardless of how
+/// much metadata it carries.
 class _Footer extends StatelessWidget {
   const _Footer({required this.message, this.onRetry, this.onRegenerate});
 
@@ -383,9 +438,9 @@ class _Footer extends StatelessWidget {
 
     if (message.status == MessageStatus.queued) {
       items.add(
-        AppBadge(
-          label: 'Queued',
+        _FooterChip(
           icon: Icons.schedule_rounded,
+          label: 'Queued',
           color: chat.warning,
         ),
       );
@@ -393,7 +448,7 @@ class _Footer extends StatelessWidget {
 
     if (message.status == MessageStatus.cancelled) {
       items.add(
-        const AppBadge(label: 'Stopped', icon: Icons.stop_circle_outlined),
+        const _FooterChip(icon: Icons.stop_circle_outlined, label: 'Stopped'),
       );
     }
 
@@ -401,21 +456,19 @@ class _Footer extends StatelessWidget {
         message.engine != null &&
         message.status == MessageStatus.complete) {
       items.add(
-        AppBadge(
-          label: message.engine!.isOnDevice ? 'On-device' : 'Cloud',
+        _FooterChip(
           icon: message.engine!.isOnDevice
               ? Icons.memory_rounded
               : Icons.cloud_outlined,
+          label: message.engine!.isOnDevice ? 'On-device' : 'Cloud',
           color: message.engine!.isOnDevice ? chat.onDeviceAccent : null,
         ),
       );
       if (message.latency case final Duration latency) {
         items.add(
-          Text(
-            '${(latency.inMilliseconds / 1000).toStringAsFixed(1)}s',
-            style: context.texts.labelSmall?.copyWith(
-              color: context.colors.onSurfaceVariant,
-            ),
+          _FooterChip(
+            icon: Icons.timer_outlined,
+            label: '${(latency.inMilliseconds / 1000).toStringAsFixed(1)}s',
           ),
         );
       }
@@ -423,10 +476,10 @@ class _Footer extends StatelessWidget {
 
     if (message.status.canRetry && onRetry != null) {
       items.add(
-        _FooterAction(
+        _FooterChip(
           icon: Icons.refresh_rounded,
           label: 'Retry',
-          onPressed: onRetry!,
+          onPressed: onRetry,
         ),
       );
     }
@@ -435,15 +488,15 @@ class _Footer extends StatelessWidget {
         message.status.isTerminal &&
         onRegenerate != null) {
       items.add(
-        _FooterAction(
+        _FooterChip(
           icon: Icons.autorenew_rounded,
           label: 'Regenerate',
-          onPressed: onRegenerate!,
+          onPressed: onRegenerate,
         ),
       );
       if (message.hasContent) {
         items.add(
-          _FooterAction(
+          _FooterChip(
             icon: Icons.content_copy_rounded,
             label: 'Copy',
             onPressed: () {
@@ -457,53 +510,70 @@ class _Footer extends StatelessWidget {
 
     if (items.isEmpty) return const SizedBox.shrink();
 
+    final row = Row(mainAxisSize: MainAxisSize.min, children: items);
+
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
-      child: Wrap(
-        spacing: AppSpacing.sm,
-        runSpacing: AppSpacing.xs,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: items,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+      child: message.isFromUser
+          // The user's footer is short and right-aligned, so it needs no
+          // scrolling — and a scroll view would strand it against the left edge.
+          ? row
+          : SingleChildScrollView(scrollDirection: Axis.horizontal, child: row),
     );
   }
 }
 
-class _FooterAction extends StatelessWidget {
-  const _FooterAction({
+/// One borderless pill in the footer.
+class _FooterChip extends StatelessWidget {
+  const _FooterChip({
     required this.icon,
     required this.label,
-    required this.onPressed,
+    this.color,
+    this.onPressed,
   });
 
   final IconData icon;
   final String label;
-  final VoidCallback onPressed;
+
+  /// Overrides the muted default. Used only where the colour carries meaning —
+  /// the on-device marker and the queued state.
+  final Color? color;
+
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: AppRadius.allXs,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: 2,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: context.colors.onSurfaceVariant),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              label,
-              style: context.texts.labelSmall?.copyWith(
-                color: context.colors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+    final resolved = color ?? context.colors.onSurfaceVariant;
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: resolved),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: context.texts.labelSmall?.copyWith(
+              fontSize: 11,
+              height: 1.2,
+              fontWeight: FontWeight.w500,
+              color: resolved,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onPressed == null) return content;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppRadius.allSm,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(onTap: onPressed, child: content),
     );
   }
 }

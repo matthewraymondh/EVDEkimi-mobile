@@ -80,6 +80,42 @@ void main() {
       expect(find.byType(GptMarkdown), findsOneWidget);
     });
 
+    testWidgets('gives the user a filled bubble and the assistant none', (
+      tester,
+    ) async {
+      // The asymmetry is the design, and it is the kind of thing a later tidy-up
+      // "restores" because a bubble on one side and none on the other looks like
+      // an oversight. It is not: model output is long-form prose, and boxing it
+      // puts a card around a block of reading material and a second border
+      // around every code block inside it.
+      await tester.pumpWidget(
+        host(
+          Column(
+            children: [
+              MessageBubble(
+                message: message(role: MessageRole.user, content: 'Hello'),
+              ),
+              MessageBubble(
+                message: message(role: MessageRole.assistant, content: 'Hi'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      final fills = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .map((box) => box.decoration)
+          .whereType<BoxDecoration>()
+          .where((decoration) => decoration.gradient != null);
+
+      expect(
+        fills,
+        hasLength(1),
+        reason: 'exactly one filled bubble on screen, and it is the user\'s',
+      );
+    });
+
     testWidgets('shows a typing indicator before the first token', (
       tester,
     ) async {

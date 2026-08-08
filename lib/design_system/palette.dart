@@ -83,6 +83,10 @@ abstract final class AppPalette {
   /// The accent, quietened for large washes and inactive tints.
   static const Color accentMuted = Color(0xFF60A5FA);
 
+  /// One step below [accentDeep], for the foot of the outgoing bubble's
+  /// gradient and for pressed states.
+  static const Color accentPressed = Color(0xFF1D4ED8);
+
   // ------------------------------------------------------- status
 
   /// Functional, not decorative. Neutral-friendly, but never so restrained that

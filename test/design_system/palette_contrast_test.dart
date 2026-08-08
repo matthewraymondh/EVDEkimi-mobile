@@ -77,16 +77,25 @@ void main() {
       );
 
       check('filled button label', scheme.onPrimary, scheme.primary, bodyText);
+      // Both ends of the gradient, because text spans the whole bubble and the
+      // last line sits on the darkest part of it.
       check(
-        'outgoing bubble text',
+        'outgoing bubble text, top of the gradient',
         chat.onOutgoingBubble,
         chat.outgoingBubble,
         bodyText,
       );
       check(
-        'incoming bubble text',
+        'outgoing bubble text, foot of the gradient',
+        chat.onOutgoingBubble,
+        chat.outgoingBubbleEnd,
+        bodyText,
+      );
+      // The assistant no longer has a bubble, so its text sits on the page.
+      check(
+        'assistant message text',
         chat.onIncomingBubble,
-        chat.incomingBubble,
+        scheme.surface,
         bodyText,
       );
       check(

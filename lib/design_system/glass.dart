@@ -18,6 +18,8 @@
 /// leaving the system setting authoritative when the toggle is on.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
@@ -110,13 +112,10 @@ class GlassSurface extends StatelessWidget {
       // The shadow sits outside the glass: a glass layer captures and refracts
       // its own backdrop, and a shadow inside would be refracted along with it.
       decoration: ShapeDecoration(shape: shape, shadows: shadows),
-      child: Container(
-        // Painted over the glass, not under it, so the refraction cannot wash
-        // the edge out. `foregroundDecoration` with no fill draws the stroke
-        // alone.
-        foregroundDecoration: ShapeDecoration(
-          shape: shape.copyWith(side: BorderSide(color: chat.glassStroke)),
-        ),
+      child: _GlassEdge(
+        shape: shape,
+        stroke: chat.glassStroke,
+        highlight: chat.glassHighlight,
         child: GlassContainer(
           // A superellipse, not a circular-radius rounded rect. It is what
           // iOS 26 uses, and the continuous curvature is most of why the corners
@@ -147,19 +146,116 @@ class GlassSurface extends StatelessWidget {
   }
 }
 
-/// The soft wash that gives glass something to refract.
+/// The edge of a glass panel: a full outline plus a brighter top rim.
+///
+/// Two strokes on the same path, not one. A uniform outline says "here is the
+/// boundary"; what says *glass* is that the top edge is brighter than the
+/// bottom, because a pane lit from above catches light along its upper rim and
+/// almost none along its lower one. Painting a flat 1px line all the way round
+/// is the difference between a panel and a pane.
+///
+/// The highlight is a vertical gradient rather than a separate top-edge segment,
+/// which is why it wraps the shoulders and fades out down the sides instead of
+/// stopping abruptly at the corners — the same way a real specular does.
+class _GlassEdge extends StatelessWidget {
+  const _GlassEdge({
+    required this.shape,
+    required this.stroke,
+    required this.highlight,
+    required this.child,
+  });
+
+  final LiquidShape shape;
+  final Color stroke;
+  final Color highlight;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      // Over the glass, not under it: the refraction would otherwise wash the
+      // edge out, which is exactly the detail that must survive.
+      foregroundPainter: _GlassEdgePainter(
+        shape: shape,
+        stroke: stroke,
+        highlight: highlight,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _GlassEdgePainter extends CustomPainter {
+  const _GlassEdgePainter({
+    required this.shape,
+    required this.stroke,
+    required this.highlight,
+  });
+
+  final LiquidShape shape;
+  final Color stroke;
+  final Color highlight;
+
+  /// Fraction of the panel's height the highlight survives to.
+  ///
+  /// Short. Past roughly a third it stops reading as a lit edge and starts
+  /// reading as a gradient fill leaking out of the border.
+  static const double _falloff = 0.35;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Inset by half the stroke so a 1px line lands *inside* the shape rather
+    // than straddling it, which would leave half a pixel of it outside the clip
+    // and read as a soft edge.
+    final rect = (Offset.zero & size).deflate(0.5);
+    if (rect.isEmpty) return;
+    final path = shape.getOuterPath(rect);
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = stroke,
+    );
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..shader = ui.Gradient.linear(
+          rect.topCenter,
+          Offset(rect.center.dx, rect.top + rect.height * _falloff),
+          [highlight, highlight.withValues(alpha: 0)],
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlassEdgePainter oldDelegate) =>
+      oldDelegate.shape != shape ||
+      oldDelegate.stroke != stroke ||
+      oldDelegate.highlight != highlight;
+}
+
+/// The ambient wash that gives glass something to refract.
 ///
 /// Glass bends what is behind it, so over a flat fill it bends nothing and reads
-/// as slightly murky plastic. Two very low-opacity blooms give the chrome
-/// gradients to distort.
+/// as slightly murky plastic. Two large, heavily blurred spots — one warm-ish
+/// slate high on the right, one deeper navy low on the left — give the chrome
+/// real structure to distort instead of a uniform field.
 ///
-/// **Light, not colour.** These were brand-tinted washes when the palette had a
-/// hue to spend. On a true neutral base a coloured bloom is immediately obvious
-/// — it turns the page into a gradient wallpaper and undoes the whole reason the
-/// greys are untinted. So the blooms are now white in dark mode and black in
-/// light: pure luminance gradients, invisible as colour, doing exactly the job
-/// required of them, which is to vary the backdrop so refraction has structure
-/// to find. If you can see them *as* blooms they are too strong.
+/// **Why blurred circles rather than radial gradients.** A radial gradient falls
+/// off linearly and produces a visible ring where it terminates. A Gaussian has
+/// no such edge, so at this scale the spots read as depth in the room rather
+/// than as shapes on the page. That is the entire difference between glass that
+/// looks lit and glass that looks like a grey rectangle.
+///
+/// They are also the one place a hue is allowed back in. It survives at roughly
+/// a percent of effective opacity after the blur, which is enough for refraction
+/// to have something to separate and far too little to tint a surface — the
+/// thing the neutral ramp exists to avoid.
 ///
 /// Renders nothing when glass is disabled, so the plain theme stays plain.
 class AppBackdrop extends StatelessWidget {
@@ -167,51 +263,78 @@ class AppBackdrop extends StatelessWidget {
 
   final Widget child;
 
+  /// Blur applied to each spot. Large enough that no edge survives it.
+  static const double _spotBlur = 80;
+
   @override
   Widget build(BuildContext context) {
     if (!GlassScope.of(context)) return child;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final light = isDark ? Colors.white : Colors.black;
 
     return Stack(
       children: [
+        // One boundary around both spots, not one each. They never change, so
+        // this lets the compositor cache the whole blurred layer and reuse it
+        // instead of re-running two 80-sigma filters on every frame — which at
+        // full-screen size is the difference between free and expensive.
         Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                // Deliberately *not* at the very top. Centred at -0.9 the bloom
-                // peaked directly behind the app bar, so the one strip already
-                // carrying a glass tint and a saturation boost was also the
-                // brightest thing on screen — which is most of why the top edge
-                // read as a separate, badly-matched panel. Dropped to -0.35 so
-                // the bar sits on the falloff rather than the hotspot.
-                center: const Alignment(-0.75, -0.35),
-                radius: 1.3,
-                colors: [
-                  light.withValues(alpha: isDark ? 0.05 : 0.03),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0.9, 0.7),
-                radius: 1.2,
-                colors: [
-                  light.withValues(alpha: isDark ? 0.035 : 0.02),
-                  Colors.transparent,
-                ],
+          child: RepaintBoundary(
+            child: IgnorePointer(
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(
+                  sigmaX: _spotBlur,
+                  sigmaY: _spotBlur,
+                ),
+                child: Stack(
+                  children: [
+                    _AmbientSpot(
+                      alignment: const Alignment(1.1, -0.85),
+                      color: isDark
+                          ? const Color(0xFF1E293B).withValues(alpha: 0.30)
+                          : Colors.white,
+                      diameter: 300,
+                    ),
+                    _AmbientSpot(
+                      alignment: const Alignment(-1.0, 0.9),
+                      color: isDark
+                          ? const Color(0xFF0F172A).withValues(alpha: 0.40)
+                          : const Color(0xFF64748B).withValues(alpha: 0.10),
+                      diameter: 340,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
         child,
       ],
+    );
+  }
+}
+
+/// One blurred disc of the ambient wash.
+class _AmbientSpot extends StatelessWidget {
+  const _AmbientSpot({
+    required this.alignment,
+    required this.color,
+    required this.diameter,
+  });
+
+  final Alignment alignment;
+  final Color color;
+  final double diameter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignment,
+      child: Container(
+        width: diameter,
+        height: diameter,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
     );
   }
 }

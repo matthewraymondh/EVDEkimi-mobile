@@ -66,20 +66,27 @@ abstract final class AppRadius {
   static const BorderRadius allXxl = BorderRadius.all(xxl);
   static const BorderRadius allPill = BorderRadius.all(pill);
 
+  /// The tucked corner on a chat bubble.
+  ///
+  /// Tighter than [xs], and it has to be: at 20px on the other three corners a
+  /// 6px tuck reads as a rounding error rather than a deliberate point. The
+  /// larger the other corners, the sharper this one must be to register.
+  static const Radius tuck = Radius.circular(4);
+
   /// Chat bubbles: three round corners and one tucked corner pointing at the
   /// sender, which conveys direction without drawing a tail.
   static const BorderRadius bubbleOutgoing = BorderRadius.only(
-    topLeft: lg,
-    topRight: lg,
-    bottomLeft: lg,
-    bottomRight: xs,
+    topLeft: xl,
+    topRight: xl,
+    bottomLeft: xl,
+    bottomRight: tuck,
   );
 
   static const BorderRadius bubbleIncoming = BorderRadius.only(
-    topLeft: lg,
-    topRight: lg,
-    bottomLeft: xs,
-    bottomRight: lg,
+    topLeft: xl,
+    topRight: xl,
+    bottomLeft: tuck,
+    bottomRight: xl,
   );
 }
 

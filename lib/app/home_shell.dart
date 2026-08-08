@@ -81,7 +81,7 @@ class _FloatingNavBar extends ConsumerWidget {
           AppSpacing.gutter,
           0,
           AppSpacing.gutter,
-          AppSpacing.md,
+          AppSpacing.lg,
         ),
         child: SizedBox(
           height: _barHeight,
@@ -182,7 +182,12 @@ class _NavItem extends StatelessWidget {
                 width: isActive ? 40 : 0,
                 height: isActive ? 40 : 0,
                 decoration: BoxDecoration(
-                  color: context.colors.primary.withValues(alpha: 0.14),
+                  // Neutral, not accent. The compose control beside it is a
+                  // solid accent block, and tinting the selected destination
+                  // the same colour made two adjacent things compete for the
+                  // role of "the important one". A plain lift says "you are
+                  // here" without claiming to be an action.
+                  color: context.colors.onSurface.withValues(alpha: 0.08),
                   // A squircle, not a disc, so the selected destination and the
                   // compose control read as the same family of object.
                   borderRadius: AppRadius.allMd,
@@ -194,7 +199,7 @@ class _NavItem extends StatelessWidget {
                   isActive ? activeIcon : icon,
                   key: ValueKey(isActive),
                   color: isActive
-                      ? context.colors.primary
+                      ? context.colors.onSurface
                       : context.colors.onSurfaceVariant,
                   size: AppSizes.iconMd,
                 ),

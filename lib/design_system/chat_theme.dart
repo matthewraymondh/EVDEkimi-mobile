@@ -13,9 +13,11 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   const ChatTheme({
     required this.glassFill,
     required this.glassStroke,
+    required this.glassHighlight,
     required this.raisedSurface,
     required this.raisedBorder,
     required this.outgoingBubble,
+    required this.outgoingBubbleEnd,
     required this.onOutgoingBubble,
     required this.incomingBubble,
     required this.onIncomingBubble,
@@ -42,6 +44,10 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // saying where the panel ends.
     glassFill: Color(0x99FFFFFF),
     glassStroke: Color(0x0F000000),
+    // Light mode still lights from above, but a white rim on a near-white panel
+    // is invisible, so the highlight is what a bright edge actually looks like
+    // there: *less* of the darkening the rest of the outline carries.
+    glassHighlight: Color(0x0AFFFFFF),
     raisedSurface: AppPalette.white,
     // Heavier than the glass stroke, and it has to be. A white card on a
     // #F8FAFC page is 1.05:1 — the tonal step is not a separation at all, so
@@ -50,6 +56,7 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // The user's own messages carry the accent: it is the one element on screen
     // that should feel like "you", and it anchors the eye when scanning.
     outgoingBubble: AppPalette.accentDeep,
+    outgoingBubbleEnd: AppPalette.accentPressed,
     onOutgoingBubble: AppPalette.white,
     // Assistant messages are white on the canvas rather than a tinted fill.
     // Model output is long-form text and needs to read like a document page.
@@ -77,9 +84,11 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     // it resolves to. Anything heavier stops being glass and becomes a panel.
     glassFill: Color(0x0DFFFFFF),
     glassStroke: Color(0x14FFFFFF),
+    glassHighlight: Color(0x1FFFFFFF),
     raisedSurface: AppPalette.zinc900,
     raisedBorder: Color(0x14FFFFFF),
     outgoingBubble: AppPalette.accentDeep,
+    outgoingBubbleEnd: AppPalette.accentPressed,
     onOutgoingBubble: AppPalette.white,
     incomingBubble: AppPalette.zinc900,
     onIncomingBubble: AppPalette.zinc100,
@@ -109,6 +118,13 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   /// being visible and the panel just looks like frosted plastic.
   final Color glassFill;
 
+  /// Brightness added to the *top* rim of a glass panel.
+  ///
+  /// What separates a pane from a panel. A uniform outline says where the edge
+  /// is; an edge that is brighter at the top says the thing is lit from above
+  /// and has physical depth, which is the whole illusion.
+  final Color glassHighlight;
+
   /// The 1px hairline around every glass panel.
   ///
   /// This is what makes glass read as glass rather than as a blurred region.
@@ -127,7 +143,17 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   /// Hairline that separates rows inside a [raisedSurface] card.
   final Color raisedBorder;
 
+  /// Top of the outgoing bubble's fill.
   final Color outgoingBubble;
+
+  /// Bottom of it.
+  ///
+  /// A gradient inside one hue, not across two. The distinction matters: a
+  /// two-hue decorative gradient is the hallmark of a surface designed by
+  /// defaults, whereas one step of the same colour is a light-falloff cue and
+  /// reads as depth. Contrast is checked against this end, since it is darker.
+  final Color outgoingBubbleEnd;
+
   final Color onOutgoingBubble;
   final Color incomingBubble;
   final Color onIncomingBubble;
@@ -160,9 +186,11 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   ChatTheme copyWith({
     Color? glassFill,
     Color? glassStroke,
+    Color? glassHighlight,
     Color? raisedSurface,
     Color? raisedBorder,
     Color? outgoingBubble,
+    Color? outgoingBubbleEnd,
     Color? onOutgoingBubble,
     Color? incomingBubble,
     Color? onIncomingBubble,
@@ -184,9 +212,11 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   }) => ChatTheme(
     glassFill: glassFill ?? this.glassFill,
     glassStroke: glassStroke ?? this.glassStroke,
+    glassHighlight: glassHighlight ?? this.glassHighlight,
     raisedSurface: raisedSurface ?? this.raisedSurface,
     raisedBorder: raisedBorder ?? this.raisedBorder,
     outgoingBubble: outgoingBubble ?? this.outgoingBubble,
+    outgoingBubbleEnd: outgoingBubbleEnd ?? this.outgoingBubbleEnd,
     onOutgoingBubble: onOutgoingBubble ?? this.onOutgoingBubble,
     incomingBubble: incomingBubble ?? this.incomingBubble,
     onIncomingBubble: onIncomingBubble ?? this.onIncomingBubble,
@@ -214,9 +244,15 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     return ChatTheme(
       glassFill: Color.lerp(glassFill, other.glassFill, t)!,
       glassStroke: Color.lerp(glassStroke, other.glassStroke, t)!,
+      glassHighlight: Color.lerp(glassHighlight, other.glassHighlight, t)!,
       raisedSurface: Color.lerp(raisedSurface, other.raisedSurface, t)!,
       raisedBorder: Color.lerp(raisedBorder, other.raisedBorder, t)!,
       outgoingBubble: Color.lerp(outgoingBubble, other.outgoingBubble, t)!,
+      outgoingBubbleEnd: Color.lerp(
+        outgoingBubbleEnd,
+        other.outgoingBubbleEnd,
+        t,
+      )!,
       onOutgoingBubble: Color.lerp(
         onOutgoingBubble,
         other.onOutgoingBubble,

@@ -348,10 +348,14 @@ class _EmptyConversation extends ConsumerWidget {
 
 /// One suggestion on the empty state.
 ///
-/// A hairline outline, a 16px muted glyph, and a 12px corner shared with the
-/// search field and the compose control — so the three read as one system
-/// rather than three visual languages on adjacent screens.
-class _PromptChip extends StatelessWidget {
+/// A faint fill, a hairline outline, a 16px muted glyph, and a 12px corner
+/// shared with the search field and the compose control — so the three read as
+/// one system rather than three visual languages on adjacent screens.
+///
+/// The fill matters more than its 3% suggests. With an outline alone the chips
+/// read as *empty slots* on an already-empty screen; the barest wash of the
+/// foreground colour is what makes them read as objects rather than gaps.
+class _PromptChip extends StatefulWidget {
   const _PromptChip({
     required this.label,
     required this.icon,
@@ -363,34 +367,64 @@ class _PromptChip extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_PromptChip> createState() => _PromptChipState();
+}
+
+class _PromptChipState extends State<_PromptChip> {
+  bool _isPressed = false;
+
+  void _setPressed({required bool value}) {
+    if (_isPressed != value) setState(() => _isPressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: AppRadius.allMd,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm + 2,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.allMd,
-            border: Border.all(color: context.chatTheme.glassStroke),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: context.colors.onSurfaceVariant),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                label,
-                style: context.texts.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
+    final foreground = context.colors.onSurface;
+
+    return Semantics(
+      button: true,
+      label: widget.label,
+      child: GestureDetector(
+        onTapDown: (_) => _setPressed(value: true),
+        onTapCancel: () => _setPressed(value: false),
+        onTapUp: (_) => _setPressed(value: false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          // The press response has to be scale, not an ink ripple: on a 3% fill
+          // a ripple is invisible, and a chip that does not move under the
+          // finger reads as broken rather than subtle.
+          scale: _isPressed ? 0.96 : 1,
+          duration: AppDuration.instant,
+          curve: AppCurve.standard,
+          child: AnimatedContainer(
+            duration: AppDuration.instant,
+            curve: AppCurve.standard,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + 2,
+            ),
+            decoration: BoxDecoration(
+              color: foreground.withValues(alpha: _isPressed ? 0.08 : 0.03),
+              borderRadius: AppRadius.allMd,
+              border: Border.all(color: context.chatTheme.glassStroke),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  widget.icon,
+                  size: 16,
+                  color: context.colors.onSurfaceVariant,
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  widget.label,
+                  style: context.texts.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

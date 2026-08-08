@@ -7,6 +7,11 @@ ONNX model running on-device**.
 Built for the EVDEkimi Senior Flutter Mobile Developer (AI & On-Device AI)
 take-home assessment.
 
+[![CI](https://github.com/matthewraymondh/EVDEkimi-mobile/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/matthewraymondh/EVDEkimi-mobile/actions/workflows/ci.yml)
+
+Four jobs on every push: analyze and test, model reproducibility, an Android
+build including the release bundle, and an iOS build on macOS.
+
 | | |
 |---|---|
 | **Flutter** | 3.44.9 (stable) · Dart 3.12.2 |
@@ -235,9 +240,19 @@ more than the gap:
   process. The feature extraction *is* fully tested against golden vectors; the
   inference call itself is verified on device and by the Python runtime in the
   training script.
-- **iOS is configured but unverified on hardware.** No Mac was available. The
-  Podfile, permission strings and CI build step are in place; I have not run it on
-  a device and will not claim otherwise.
+- **iOS compiles in CI on every commit; it has never run on hardware.** No Mac
+  was available. The macOS job builds `flutter build ios --debug --no-codesign`,
+  which compiles every Swift and Objective-C plugin and links the native ONNX
+  Runtime and ML Kit frameworks — so the toolchain, the Podfile and the
+  deployment target are all proven. What is unproven is behaviour: nothing has
+  been tapped, and the glass shaders in particular have never been rendered by
+  Impeller on a real device. I will not claim more than that.
+
+  Worth knowing if you build it: **ML Kit sets the minimum to iOS 15.5.** Every
+  other dependency is happy at 13.0, and the project was at 13.0 until CocoaPods
+  refused to resolve. The number is in `ios/Podfile`, in the three Runner
+  configurations, and forced onto every pod in `post_install`; all three have to
+  agree.
 - **Android is verified on a physical device**, including on-device inference:
   ONNX Runtime 1.15.1 loads the bundled 130 KB model in ~560 ms and embedding runs
   on every completed message. On an x86_64 emulator the runtime cannot load at all

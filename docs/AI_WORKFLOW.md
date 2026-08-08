@@ -286,6 +286,7 @@ stage catches a class the previous one structurally cannot.
 | Building | Three toolchain conflicts (§3.11) |
 | **Running it** | Startup zone mismatch, a latch that did not latch, unusable output |
 | **Using it for a while** | A 401 path that only existed after a token aged out (§3.13) |
+| **CI, on someone else's machine** | An iOS build nothing local could attempt, and a reproducibility check that assumed one CPU (§3.14) |
 
 That last row is its own category. §3.13 needed the app used continuously past a
 token lifetime — no amount of launching it and tapping around would surface it.
@@ -396,6 +397,65 @@ one caller.
 Both halves are pinned by tests that were verified to fail without their fix
 (`sse_auth_test.dart`, `refresh_single_flight_test.dart`) — the second reproduces
 rotation by rejecting a spent token, which is the only way the race is visible.
+
+### 3.14 Three failures behind one red badge
+
+CI had been red since the first commit. I assumed my workflow was wrong. It was
+not: **all 35 runs had been blocked by unpaid billing**, none lasting longer than
+17 seconds, not one executing a single step. The badge was reporting a payment
+problem in the vocabulary of a build failure.
+
+Once it ran, two jobs failed for real — and the interesting part is that I got
+the first diagnosis wrong and the evidence corrected me.
+
+**iOS: an absent file reported as a project setting.**
+
+```
+[!] Automatically assigning platform `iOS` with version `13.0` on target `Runner`
+    because no platform was specified.
+Error: The plugin "google_mlkit_commons" requires a higher minimum iOS
+       deployment version than your application is targeting.
+```
+
+There was no `Podfile` at all, so CocoaPods fell back to its own default of 13.0
+while ML Kit declares 15.5. The message points at the deployment target, which is
+a symptom; the cause is that Flutter's template ships the `platform:` line
+commented out and nothing had ever needed it. Checking every dependency showed
+ML Kit alone sets that floor — everything else is content at 13.0.
+
+**ONNX: the check demanded a property the code does not have.**
+
+The job retrained the model and required byte-identical output. My first fix was
+to pin the Python toolchain, reasoning that serialised ONNX depends on the
+library that wrote it. The pin installed exactly as intended and the job failed
+again, with a diff that named the real cause:
+
+```
+evdekimi_router_v1.onnx | Bin 133623 -> 133623 bytes
+```
+
+Same size — so an identical graph — with every weight slightly different. That is
+floating point, not versions. numpy dispatches matmul to whatever BLAS the
+platform provides, and the reduction order in one threaded kernel is not the
+order in another; 3,000 epochs compound 1e-16 differences into the last few
+decimal places. Seeding fixes the random draws, which is all seeding can fix.
+
+So the check could never have passed on a machine other than the one that trained
+the model, and no amount of pinning would change that. It was replaced with one
+that separates what each half can honestly promise: feature extraction compared
+**exactly**, because bucket assignment is integer hashing with no float in it,
+and learned values compared **numerically** — same predicted intent, probabilities
+within 0.01, embeddings by direction. The tolerances sit inside a real gap: CI's
+own probe confidences matched local to three decimal places on all nine, while a
+changed corpus moves them by tenths.
+
+**What this says about the workflow.** Two of the three failures were in code an
+agent wrote and I reviewed without noticing, because both are invisible until
+something outside the loop executes them — `flutter run` never invokes CocoaPods
+resolution or R8, and nothing on my machine ever retrains on a different CPU. The
+third was my own wrong hypothesis, held for exactly one CI cycle because the
+build output disagreed with it. Being wrong quickly and in public is cheap; the
+expensive version is being wrong in a submitted artefact.
 
 ---
 

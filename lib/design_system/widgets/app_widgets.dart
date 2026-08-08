@@ -346,12 +346,27 @@ class _StreamingCaretState extends State<StreamingCaret>
 
 /// Placeholder rows shown while the first query resolves.
 class SkeletonList extends StatelessWidget {
-  const SkeletonList({this.itemCount = 5, super.key});
+  /// Rows with a leading avatar, matching a transcript.
+  const SkeletonList({this.itemCount = 5, super.key}) : _isGrouped = false;
+
+  /// Rows inside one rounded card, matching the conversation list.
+  ///
+  /// A skeleton exists to reserve the shape the content will take. When the two
+  /// disagree the layout visibly jumps at the moment data lands, which is worse
+  /// than showing nothing — so this mirrors the real row: no leading mark, a
+  /// title bar, a shorter excerpt bar, and a stub where the timestamp goes.
+  const SkeletonList.grouped({this.itemCount = 5, super.key})
+    : _isGrouped = true;
 
   final int itemCount;
+  final bool _isGrouped;
 
   @override
   Widget build(BuildContext context) {
+    return _isGrouped ? _buildGrouped(context) : _buildInline(context);
+  }
+
+  Widget _buildInline(BuildContext context) {
     final chat = context.chatTheme;
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.gutter),
@@ -375,6 +390,71 @@ class SkeletonList extends StatelessWidget {
                 _SkeletonBar(width: double.infinity, color: chat.skeletonBase),
                 const SizedBox(height: AppSpacing.sm),
                 _SkeletonBar(width: 180, color: chat.skeletonHighlight),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrouped(BuildContext context) {
+    final chat = context.chatTheme;
+    final hairline = chat.raisedBorder;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.xs,
+              bottom: AppSpacing.sm,
+            ),
+            child: _SkeletonBar(width: 64, color: chat.skeletonHighlight),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: chat.raisedSurface,
+              borderRadius: AppRadius.allLg,
+            ),
+            child: Column(
+              children: [
+                for (var index = 0; index < itemCount; index++)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
+                    ),
+                    decoration: BoxDecoration(
+                      border: index == itemCount - 1
+                          ? null
+                          : Border(bottom: BorderSide(color: hairline)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _SkeletonBar(
+                                width: double.infinity,
+                                color: chat.skeletonBase,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            _SkeletonBar(
+                              width: 22,
+                              color: chat.skeletonHighlight,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _SkeletonBar(width: 190, color: chat.skeletonHighlight),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),

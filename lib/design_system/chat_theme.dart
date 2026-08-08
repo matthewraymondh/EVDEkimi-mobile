@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 @immutable
 class ChatTheme extends ThemeExtension<ChatTheme> {
   const ChatTheme({
+    required this.raisedSurface,
+    required this.raisedBorder,
     required this.outgoingBubble,
     required this.onOutgoingBubble,
     required this.incomingBubble,
@@ -33,6 +35,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   });
 
   static const ChatTheme light = ChatTheme(
+    raisedSurface: AppPalette.white,
+    raisedBorder: AppPalette.ink100,
     // The user's own messages carry the brand colour: it is the one element on
     // screen that should feel like "you", and it anchors the eye when scanning.
     outgoingBubble: AppPalette.brandNavy,
@@ -59,6 +63,14 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   );
 
   static const ChatTheme dark = ChatTheme(
+    // Lighter than the page, not darker. `surfaceContainerLowest` is what a card
+    // reaches for by reflex, and in Material's dark ramp that resolves to the
+    // *darkest* tone in the set — identical to the scaffold here, which is why
+    // the conversation cards were invisible in dark mode while looking correct
+    // in light. Elevation reads as light in the dark, so the token has to be
+    // semantic rather than positional.
+    raisedSurface: AppPalette.ink800,
+    raisedBorder: AppPalette.ink700,
     // Dark mode inverts the emphasis: a saturated fill at full brightness is
     // fatiguing, so the outgoing bubble uses a deep brand tone with a bright
     // foreground instead.
@@ -82,6 +94,16 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     skeletonBase: AppPalette.ink700,
     skeletonHighlight: AppPalette.ink600,
   );
+
+  /// Fill for a card that must read as sitting above the page.
+  ///
+  /// Resolves in opposite directions per theme: lighter than the background in
+  /// dark mode, whiter than the canvas in light. Use this rather than a
+  /// `surfaceContainer*` role for anything raised.
+  final Color raisedSurface;
+
+  /// Hairline that separates rows inside a [raisedSurface] card.
+  final Color raisedBorder;
 
   final Color outgoingBubble;
   final Color onOutgoingBubble;
@@ -114,6 +136,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
 
   @override
   ChatTheme copyWith({
+    Color? raisedSurface,
+    Color? raisedBorder,
     Color? outgoingBubble,
     Color? onOutgoingBubble,
     Color? incomingBubble,
@@ -134,6 +158,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
     Color? skeletonBase,
     Color? skeletonHighlight,
   }) => ChatTheme(
+    raisedSurface: raisedSurface ?? this.raisedSurface,
+    raisedBorder: raisedBorder ?? this.raisedBorder,
     outgoingBubble: outgoingBubble ?? this.outgoingBubble,
     onOutgoingBubble: onOutgoingBubble ?? this.onOutgoingBubble,
     incomingBubble: incomingBubble ?? this.incomingBubble,
@@ -160,6 +186,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> {
   ChatTheme lerp(ChatTheme? other, double t) {
     if (other == null) return this;
     return ChatTheme(
+      raisedSurface: Color.lerp(raisedSurface, other.raisedSurface, t)!,
+      raisedBorder: Color.lerp(raisedBorder, other.raisedBorder, t)!,
       outgoingBubble: Color.lerp(outgoingBubble, other.outgoingBubble, t)!,
       onOutgoingBubble: Color.lerp(
         onOutgoingBubble,

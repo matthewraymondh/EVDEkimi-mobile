@@ -1,4 +1,5 @@
 import 'package:evdekimi_ai/app/routes.dart';
+import 'package:evdekimi_ai/core/text/markdown_text.dart';
 import 'package:evdekimi_ai/design_system/chat_theme.dart';
 import 'package:evdekimi_ai/design_system/tokens.dart';
 import 'package:evdekimi_ai/design_system/widgets/app_widgets.dart';
@@ -46,7 +47,7 @@ class ConversationListScreen extends ConsumerWidget {
             _SearchPrompt(onTap: () => context.push(AppRoutes.search)),
             Expanded(
               child: conversationsAsync.when(
-                loading: () => const SkeletonList(),
+                loading: () => const SkeletonList.grouped(),
                 error: (error, _) => EmptyStateView(
                   icon: Icons.error_outline_rounded,
                   title: "Couldn't load conversations",
@@ -113,8 +114,12 @@ Future<void> startNewConversation(BuildContext context, WidgetRef ref) async {
 /// Time-aware greeting with the user's avatar.
 ///
 /// Replaces a generic "Conversations" app bar. The screen is the app's home, and
-/// a personal header reads as arrival rather than as a list view — the same move
-/// the reference designs make.
+/// a personal header reads as arrival rather than as a list view.
+///
+/// The greeting is the larger of the two lines. That inversion is deliberate:
+/// the account name is the least interesting thing on the screen, and setting it
+/// in a display size — which is where this started — gives the most prominent
+/// typography to a string the user already knows and cannot act on.
 class _GreetingHeader extends StatelessWidget {
   const _GreetingHeader({
     required this.name,
@@ -131,7 +136,7 @@ class _GreetingHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.gutter,
-        AppSpacing.md,
+        AppSpacing.sm,
         AppSpacing.gutter,
         AppSpacing.lg,
       ),
@@ -143,29 +148,29 @@ class _GreetingHeader extends StatelessWidget {
               children: [
                 Text(
                   _greeting(),
-                  style: context.texts.bodySmall?.copyWith(
-                    color: context.colors.onSurfaceVariant,
+                  style: context.texts.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  name ?? 'Welcome back',
-                  style: context.texts.headlineSmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (name != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    name!,
+                    style: context.texts.bodyMedium?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          GestureDetector(
-            onTap: onOpenSettings,
-            child: Semantics(
-              button: true,
-              label: 'Settings',
-              child: AppAvatar(label: initials, size: 44),
-            ),
-          ),
+          _AvatarButton(initials: initials, onTap: onOpenSettings),
         ],
       ),
     );
@@ -176,6 +181,51 @@ class _GreetingHeader extends StatelessWidget {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+}
+
+/// The avatar, as an actual control.
+///
+/// A bare circle is indistinguishable from decoration — which is what it was,
+/// and why nobody would guess it opens settings. The ring and the ink response
+/// are what make it read as pressable.
+class _AvatarButton extends StatelessWidget {
+  const _AvatarButton({required this.initials, required this.onTap});
+
+  final String initials;
+  final VoidCallback onTap;
+
+  static const double _size = 42;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Settings',
+      child: Material(
+        color: context.colors.surfaceContainerHigh,
+        shape: CircleBorder(
+          side: BorderSide(color: context.colors.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: _size,
+            height: _size,
+            child: Center(
+              child: Text(
+                initials,
+                style: context.texts.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -199,44 +249,84 @@ class _SearchPrompt extends StatelessWidget {
         AppSpacing.gutter,
         AppSpacing.lg,
       ),
-      child: InkWell(
-        onTap: onTap,
+      child: Material(
+        color: context.chatTheme.raisedSurface,
         borderRadius: AppRadius.allPill,
-        child: Container(
-          height: AppSizes.minTapTarget,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: context.colors.surfaceContainerLowest,
-            borderRadius: AppRadius.allPill,
-            border: Border.all(color: context.colors.outlineVariant),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.search_rounded,
-                size: AppSizes.iconMd,
-                color: context.colors.onSurfaceVariant,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  'Search your history',
-                  style: context.texts.bodyMedium?.copyWith(
-                    color: context.colors.onSurfaceVariant,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            height: AppSizes.minTapTarget,
+            padding: const EdgeInsets.only(
+              left: AppSpacing.lg,
+              right: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.allPill,
+              border: Border.all(color: context.chatTheme.raisedBorder),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search_rounded,
+                  size: AppSizes.iconMd,
+                  color: context.colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    'Search your history',
+                    style: context.texts.bodyMedium?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
                   ),
                 ),
-              ),
-              AppBadge(
-                label: 'On-device',
-                icon: Icons.memory_rounded,
-                color: chat.onDeviceAccent,
-              ),
-            ],
+                // Quieter than it was. This is a capability tag, not a button,
+                // and at full badge weight it read as the primary action in a
+                // field whose primary action is the field itself.
+                Icon(
+                  Icons.memory_rounded,
+                  size: AppSizes.iconSm,
+                  color: chat.onDeviceAccent,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------- the list
+
+/// One row of the flattened list: either a date heading or a thread.
+///
+/// Flattened rather than nested so the whole list stays a single
+/// `ListView.builder` and keeps its lazy building. A `Column` of groups inside a
+/// scroll view would build every row on every frame.
+sealed class _Entry {
+  const _Entry();
+}
+
+final class _SectionEntry extends _Entry {
+  const _SectionEntry(this.label);
+  final String label;
+}
+
+final class _ThreadEntry extends _Entry {
+  const _ThreadEntry({
+    required this.conversation,
+    required this.isFirst,
+    required this.isLast,
+  });
+
+  final Conversation conversation;
+
+  /// Position within its group, which decides which corners are rounded.
+  final bool isFirst;
+  final bool isLast;
 }
 
 class _ConversationList extends ConsumerWidget {
@@ -246,151 +336,203 @@ class _ConversationList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Cards on the canvas rather than tiles separated by rules: each thread is a
-    // discrete object, and the tonal step does the separating so no divider is
-    // needed.
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.gutter,
-        0,
-        AppSpacing.gutter,
-        AppSpacing.xxxl * 2,
-      ),
-      itemCount: conversations.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (context, index) {
-        final conversation = conversations[index];
-        return _ConversationTile(conversation: conversation);
+    final entries = _flatten(conversations, DateTime.now());
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxxl * 2),
+      itemCount: entries.length,
+      itemBuilder: (context, index) => switch (entries[index]) {
+        _SectionEntry(:final label) => _SectionHeading(label: label),
+        _ThreadEntry(:final conversation, :final isFirst, :final isLast) =>
+          _ConversationTile(
+            key: ValueKey(conversation.id),
+            conversation: conversation,
+            isFirst: isFirst,
+            isLast: isLast,
+          ),
       },
+    );
+  }
+
+  /// Groups by recency, preserving the incoming order.
+  ///
+  /// The DAO already returns pinned-first then newest-first, so contiguous runs
+  /// of the same bucket fall out of a single pass — no sorting here, which would
+  /// only risk disagreeing with the query.
+  static List<_Entry> _flatten(List<Conversation> conversations, DateTime now) {
+    final entries = <_Entry>[];
+    String? section;
+
+    for (var index = 0; index < conversations.length; index++) {
+      final conversation = conversations[index];
+      final label = _sectionFor(conversation, now);
+
+      if (label != section) {
+        entries.add(_SectionEntry(label));
+        section = label;
+      }
+
+      final next = index + 1 < conversations.length
+          ? conversations[index + 1]
+          : null;
+
+      entries.add(
+        _ThreadEntry(
+          conversation: conversation,
+          // Safe because a heading was just appended if this starts a group.
+          isFirst: entries.last is _SectionEntry,
+          isLast: next == null || _sectionFor(next, now) != label,
+        ),
+      );
+    }
+
+    return entries;
+  }
+
+  /// Which heading a conversation belongs under.
+  ///
+  /// Pinned threads get their own group instead of an icon on the row. The
+  /// heading says it once for the whole set, which is both quieter and clearer
+  /// than repeating a pin glyph next to every title.
+  static String _sectionFor(Conversation conversation, DateTime now) {
+    if (conversation.isPinned) return 'Pinned';
+
+    final day = DateUtils.dateOnly(conversation.updatedAt.toLocal());
+    final days = DateUtils.dateOnly(now).difference(day).inDays;
+
+    return switch (days) {
+      <= 0 => 'Today',
+      1 => 'Yesterday',
+      < 7 => 'Earlier this week',
+      < 30 => 'Earlier this month',
+      _ => 'Older',
+    };
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter + AppSpacing.xs,
+        AppSpacing.lg,
+        AppSpacing.gutter,
+        AppSpacing.sm,
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: context.texts.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.9,
+          color: context.colors.onSurfaceVariant.withValues(alpha: 0.75),
+        ),
+      ),
     );
   }
 }
 
+/// One thread, as a row inside a grouped card.
+///
+/// Two changes from the first version are worth naming, because both were what
+/// made the list read as generated rather than designed:
+///
+/// * **No leading avatar.** Every row carried an identical circle with an
+///   identical sparkle in it. Every conversation in this app is with the
+///   assistant, so the glyph distinguished nothing — five copies of the same
+///   mark down the left edge, costing a third of the row width to say something
+///   the screen already says. Engine is the only genuine per-row difference, and
+///   it now shows only on the rows where it is true.
+/// * **Grouped, not floating.** Separate cards with gaps between them made five
+///   threads occupy a whole screen. One card per date group with hairlines
+///   between rows is denser, and the grouping carries information the gaps did
+///   not.
 class _ConversationTile extends ConsumerWidget {
-  const _ConversationTile({required this.conversation});
+  const _ConversationTile({
+    required this.conversation,
+    required this.isFirst,
+    required this.isLast,
+    super.key,
+  });
 
   final Conversation conversation;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Dismissible(
-      key: ValueKey('dismiss-${conversation.id}'),
-      direction: DismissDirection.endToStart,
-      background: DecoratedBox(
-        decoration: BoxDecoration(
-          color: context.chatTheme.danger.withValues(alpha: 0.15),
-          borderRadius: AppRadius.allLg,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(right: AppSpacing.gutter),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Icon(
-              Icons.delete_outline_rounded,
-              color: context.chatTheme.danger,
-            ),
-          ),
-        ),
+    final shape = BorderRadius.vertical(
+      top: isFirst ? AppRadius.lg : Radius.zero,
+      bottom: isLast ? AppRadius.lg : Radius.zero,
+    );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        0,
+        AppSpacing.gutter,
+        isLast ? AppSpacing.xs : 0,
       ),
-      // Confirm before deleting: a swipe is easy to trigger by accident while
-      // scrolling, and a conversation is not trivially recoverable from the UI.
-      confirmDismiss: (_) => showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete conversation?'),
-          content: Text(
-            'This removes "${conversation.title}" from this device.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(
-                'Delete',
-                style: TextStyle(color: context.chatTheme.danger),
-              ),
-            ),
-          ],
-        ),
-      ),
-      onDismissed: (_) => ref
-          .read(conversationRepositoryProvider)
-          .deleteConversation(conversation.id),
       child: Material(
-        color: context.colors.surfaceContainerLowest,
-        borderRadius: AppRadius.allLg,
+        color: context.chatTheme.raisedSurface,
+        borderRadius: shape,
         clipBehavior: Clip.antiAlias,
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
-          shape: const RoundedRectangleBorder(borderRadius: AppRadius.allLg),
-          onTap: () => context.push(AppRoutes.chatPath(conversation.id)),
-          leading: AppAvatar(
-            label: 'AI',
-            isAssistant: true,
-            isOnDevice: conversation.engine.isOnDevice,
-          ),
-          title: Row(
-            children: [
-              if (conversation.isPinned)
-                const Padding(
-                  padding: EdgeInsets.only(right: AppSpacing.xs),
-                  child: Icon(Icons.push_pin_rounded, size: 13),
-                ),
-              Expanded(
-                child: Text(
-                  conversation.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.texts.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+        child: Dismissible(
+          key: ValueKey('dismiss-${conversation.id}'),
+          direction: DismissDirection.endToStart,
+          background: ColoredBox(
+            color: context.chatTheme.danger.withValues(alpha: 0.15),
+            child: Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.lg),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  color: context.chatTheme.danger,
                 ),
               ),
-            ],
+            ),
           ),
-          subtitle: conversation.lastMessagePreview == null
-              ? Text(
-                  conversation.engine.isOnDevice
-                      ? 'On-device'
-                      : 'No messages yet',
-                )
-              : Text(
-                  conversation.lastMessagePreview!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _formatTimestamp(conversation.updatedAt),
-                style: context.texts.labelSmall?.copyWith(
-                  color: context.colors.onSurfaceVariant,
-                ),
-              ),
-              if (conversation.engine.isOnDevice)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs),
-                  child: Icon(
-                    Icons.memory_rounded,
-                    size: 13,
-                    color: context.chatTheme.onDeviceAccent,
-                  ),
-                ),
-            ],
+          // Confirm before deleting: a swipe is easy to trigger by accident
+          // while scrolling, and a conversation is not trivially recoverable.
+          confirmDismiss: (_) => _confirmDelete(context),
+          onDismissed: (_) => ref
+              .read(conversationRepositoryProvider)
+              .deleteConversation(conversation.id),
+          child: InkWell(
+            onTap: () => context.push(AppRoutes.chatPath(conversation.id)),
+            onLongPress: () => _showActions(context, ref),
+            child: _TileBody(conversation: conversation, showRule: !isLast),
           ),
-          onLongPress: () => _showActions(context, ref),
         ),
       ),
     );
   }
+
+  Future<bool?> _confirmDelete(BuildContext context) => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete conversation?'),
+      content: Text('This removes "${conversation.title}" from this device.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(
+            'Delete',
+            style: TextStyle(color: context.chatTheme.danger),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _showActions(BuildContext context, WidgetRef ref) async {
     final repository = ref.read(conversationRepositoryProvider);
@@ -432,12 +574,143 @@ class _ConversationTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The row's content, split out so the swipe background never rebuilds it.
+class _TileBody extends StatelessWidget {
+  const _TileBody({required this.conversation, required this.showRule});
+
+  final Conversation conversation;
+  final bool showRule;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = _subtitleFor(conversation);
+    final isOnDevice = conversation.engine.isOnDevice;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        // A hairline instead of a gap. Rows in one group belong together, and a
+        // rule says that in one pixel where whitespace needed sixteen.
+        border: showRule
+            ? Border(bottom: BorderSide(color: context.chatTheme.raisedBorder))
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            // Baseline, not centre: the timestamp sits on the same line as the
+            // title instead of floating beside a two-line block.
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  conversation.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.texts.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Text(
+                _formatTimestamp(conversation.updatedAt),
+                style: context.texts.labelSmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.texts.bodySmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              // The one genuine per-row difference, so the one thing that earns
+              // a mark. Brass is the brand's single accent; spending it on a
+              // state that is actually rare is what keeps it meaningful.
+              if (isOnDevice) ...[
+                const SizedBox(width: AppSpacing.sm),
+                AppBadge(
+                  label: 'On-device',
+                  icon: Icons.memory_rounded,
+                  color: context.chatTheme.onDeviceAccent,
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The second line: the reply excerpt, or something useful when there is none.
+  ///
+  /// Falls back rather than blanking, so every row has two lines and the group
+  /// keeps an even rhythm.
+  static String _subtitleFor(Conversation conversation) {
+    final preview = conversation.lastMessagePreview;
+
+    if (preview != null && preview.isNotEmpty) {
+      // Stripped again here, not only in the DAO. Rows written by an earlier
+      // build are still in the database with their markup intact, and a preview
+      // is cheap to clean but expensive to migrate.
+      final plain = MarkdownText.toPlain(preview);
+      if (plain.isNotEmpty && !_restates(plain, conversation.title)) {
+        return plain;
+      }
+    }
+
+    if (conversation.messageCount > 0) {
+      final count = conversation.messageCount;
+      return '$count ${count == 1 ? 'message' : 'messages'}';
+    }
+    return conversation.engine.isOnDevice
+        ? 'Ready — runs on this device'
+        : 'No messages yet';
+  }
+
+  /// Whether the excerpt just repeats the title back.
+  ///
+  /// The title is the opening question and the excerpt is the latest reply, so
+  /// a model that answers by restating the question — which is common — makes
+  /// the row print the same sentence twice. Comparing on letters and digits
+  /// alone survives the title's own truncation ellipsis and any markup around
+  /// the echo. Short titles are exempt because a two-word title legitimately
+  /// recurs in a real answer.
+  static bool _restates(String preview, String title) {
+    final key = _lettersOnly(title);
+    if (key.length < 12) return false;
+    return _lettersOnly(preview).contains(key);
+  }
+
+  static String _lettersOnly(String value) =>
+      value.toLowerCase().replaceAll(_nonAlphanumeric, '');
+
+  static final RegExp _nonAlphanumeric = RegExp(r'[^a-z0-9]');
 
   /// Relative for recent activity, absolute once it stops being "recent".
   static String _formatTimestamp(DateTime timestamp) {
     final local = timestamp.toLocal();
-    final now = DateTime.now();
-    final difference = now.difference(local);
+    final difference = DateTime.now().difference(local);
 
     if (difference.inMinutes < 1) return 'now';
     if (difference.inMinutes < 60) return '${difference.inMinutes}m';

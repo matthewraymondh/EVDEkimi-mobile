@@ -1,5 +1,6 @@
 import 'package:evdekimi_ai/core/persistence/app_database.dart';
 import 'package:evdekimi_ai/core/persistence/database_schema.dart';
+import 'package:evdekimi_ai/core/text/markdown_text.dart';
 import 'package:evdekimi_ai/features/ai/domain/model_descriptor.dart';
 import 'package:evdekimi_ai/features/chat/data/local/chat_mappers.dart';
 import 'package:evdekimi_ai/features/chat/domain/entities/conversation.dart';
@@ -189,9 +190,16 @@ class ConversationDao {
 
   static const int _previewLength = 140;
 
+  /// Flattens a message to the excerpt the list row shows.
+  ///
+  /// Markup is removed *before* clipping, not after, because the budget should
+  /// be spent on words. A reply opening with a fenced code block or a markdown
+  /// table would otherwise burn all 140 characters on syntax and store a
+  /// preview that says nothing.
   static String? _clipPreview(String? preview) {
     if (preview == null) return null;
-    final normalised = preview.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normalised = MarkdownText.toPlain(preview);
+    if (normalised.isEmpty) return null;
     if (normalised.length <= _previewLength) return normalised;
     return '${normalised.substring(0, _previewLength)}…';
   }
